@@ -60,12 +60,72 @@ router.get('/history', (req, res) => {
 // Get users
 router.get('/users', (req, res) => {
   try {
-    const users = db.prepare(`
-      SELECT * FROM users
+    // Get unique usernames with their most recent activity and avatar
+    const uniqueUsers = db.prepare(`
+      SELECT
+        username,
+        MAX(last_seen) as last_seen,
+        MAX(is_admin) as is_admin,
+        (SELECT thumb FROM users WHERE username = u.username AND thumb IS NOT NULL LIMIT 1) as thumb,
+        (SELECT id FROM users WHERE username = u.username LIMIT 1) as id
+      FROM users u
+      GROUP BY username
       ORDER BY last_seen DESC
     `).all();
 
-    res.json({ success: true, data: users });
+    // Enhance each user with additional stats
+    const enhancedUsers = uniqueUsers.map(user => {
+      // Get watch stats (video content)
+      const watchStats = db.prepare(`
+        SELECT
+          COUNT(*) as watch_plays,
+          SUM(duration) as watch_duration
+        FROM history
+        WHERE username = ? AND media_type IN ('movie', 'episode')
+      `).get(user.username);
+
+      // Get listening stats (audio content)
+      const listenStats = db.prepare(`
+        SELECT
+          COUNT(*) as listen_plays,
+          SUM(duration) as listen_duration
+        FROM history
+        WHERE username = ? AND media_type IN ('audiobook', 'track', 'book')
+      `).get(user.username);
+
+      // Get total stats
+      const totalStats = db.prepare(`
+        SELECT
+          COUNT(*) as total_plays,
+          SUM(duration) as total_duration
+        FROM history
+        WHERE username = ?
+      `).get(user.username);
+
+      // Get server breakdown
+      const serverStats = db.prepare(`
+        SELECT
+          server_type,
+          COUNT(*) as plays,
+          SUM(duration) as duration
+        FROM history
+        WHERE username = ?
+        GROUP BY server_type
+      `).all(user.username);
+
+      return {
+        ...user,
+        total_plays: totalStats.total_plays || 0,
+        total_duration: totalStats.total_duration || 0,
+        watch_plays: watchStats.watch_plays || 0,
+        watch_duration: watchStats.watch_duration || 0,
+        listen_plays: listenStats.listen_plays || 0,
+        listen_duration: listenStats.listen_duration || 0,
+        server_stats: serverStats
+      };
+    });
+
+    res.json({ success: true, data: enhancedUsers });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

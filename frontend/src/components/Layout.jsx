@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
-import { Activity, Home, History, Users, Radio, Settings, PlayCircle, TrendingUp, Menu, ChevronDown, Clock } from 'lucide-react';
+import { Home, History, Users, Radio, Settings, Menu, ChevronDown } from 'lucide-react';
 import { getDashboardStats } from '../utils/api';
 import { formatDuration } from '../utils/format';
 
@@ -12,7 +12,6 @@ function Layout({ children }) {
 
   const navItems = [
     { path: '/', label: 'Dashboard', icon: Home },
-    { path: '/activity', label: 'Current Activity', icon: Activity },
     { path: '/history', label: 'History', icon: History },
     { path: '/users', label: 'Users', icon: Users },
     { path: '/settings', label: 'Settings', icon: Settings },
