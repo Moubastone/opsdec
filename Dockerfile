@@ -42,6 +42,9 @@ COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 RUN mkdir -p /app/backend/data && \
     chown -R node:node /app
 
+# Set NODE_ENV to production by default
+ENV NODE_ENV=production
+
 # Switch to non-root user
 USER node
 
