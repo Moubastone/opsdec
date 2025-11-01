@@ -76,22 +76,41 @@ export default function Settings() {
 
     try {
       const isNewServer = !editingServer;
+      let serverId;
 
       if (editingServer) {
         await api.put(`/servers/${editingServer}`, formData);
+        serverId = editingServer;
       } else {
-        await api.post('/servers', formData);
+        const response = await api.post('/servers', formData);
+        serverId = response.data.data.id;
       }
       await loadServers();
       handleCancel();
 
-      // Restart monitoring after adding a new server
-      if (isNewServer) {
+      // For new servers, automatically test connection and restart monitoring
+      if (isNewServer && serverId) {
         try {
+          // Test the connection
+          setTesting(prev => ({ ...prev, [serverId]: true }));
+          const testResponse = await api.post(`/servers/${serverId}/test`);
+          setTestResults(prev => ({
+            ...prev,
+            [serverId]: {
+              success: testResponse.data.data.success,
+              message: testResponse.data.data.success
+                ? `Connected to ${testResponse.data.data.serverName || 'server'}`
+                : `Failed: ${testResponse.data.data.error}`
+            }
+          }));
+          setTesting(prev => ({ ...prev, [serverId]: false }));
+
+          // Restart monitoring
           await api.post('/monitoring/restart');
           console.log('Monitoring service restarted successfully');
-        } catch (restartError) {
-          console.error('Failed to restart monitoring:', restartError);
+        } catch (error) {
+          console.error('Failed to test or restart:', error);
+          setTesting(prev => ({ ...prev, [serverId]: false }));
         }
       }
     } catch (error) {
