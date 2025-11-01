@@ -2,7 +2,7 @@ import Database from 'better-sqlite3';
 import { mkdirSync, existsSync } from 'fs';
 import { dirname } from 'path';
 
-const dbPath = process.env.DB_PATH || './data/opsdec.db';
+const dbPath = process.env.DB_PATH || '/app/data/opsdec.db';
 
 // Ensure data directory exists
 const dir = dirname(dbPath);

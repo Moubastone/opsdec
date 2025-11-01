@@ -7,12 +7,11 @@ services:
       - "3001:3001"
     volumes:
       # Persist database
-      - ./data:/app/backend/data
+      - ./data:/app/data
     environment:
       # Server Configuration
       - PORT=3001
       - NODE_ENV=production
-      - DB_PATH=/app/backend/data/opsdec.db
 
       # User/Group Configuration (for Unraid compatibility)
       # Set to your user's UID/GID if you have permission issues

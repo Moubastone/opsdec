@@ -39,7 +39,7 @@ COPY backend/ ./backend/
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 # Create data directory
-RUN mkdir -p /app/backend/data && \
+RUN mkdir -p /app/data && \
     chown -R node:node /app
 
 # Set NODE_ENV to production by default
@@ -57,7 +57,7 @@ RUN echo '#!/bin/sh' > /entrypoint.sh && \
     echo '  deluser node 2>/dev/null || true' >> /entrypoint.sh && \
     echo '  addgroup -g $PGID node 2>/dev/null || true' >> /entrypoint.sh && \
     echo '  adduser -D -u $PUID -G node node 2>/dev/null || true' >> /entrypoint.sh && \
-    echo '  chown -R node:node /app/backend/data' >> /entrypoint.sh && \
+    echo '  chown -R node:node /app/data' >> /entrypoint.sh && \
     echo 'fi' >> /entrypoint.sh && \
     echo 'exec su-exec node dumb-init -- "$@"' >> /entrypoint.sh && \
     chmod +x /entrypoint.sh
