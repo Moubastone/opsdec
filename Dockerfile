@@ -45,8 +45,28 @@ RUN mkdir -p /app/backend/data && \
 # Set NODE_ENV to production by default
 ENV NODE_ENV=production
 
-# Switch to non-root user
-USER node
+# Add PUID/PGID support for Unraid compatibility
+# Default to node user (1000:1000) if not specified
+ENV PUID=1000 \
+    PGID=1000
+
+# Create entrypoint script to handle PUID/PGID
+RUN echo '#!/bin/sh' > /entrypoint.sh && \
+    echo 'if [ ! -z "$PUID" ] && [ "$PUID" != "1000" ]; then' >> /entrypoint.sh && \
+    echo '  echo "Changing node user to PUID=$PUID, PGID=$PGID"' >> /entrypoint.sh && \
+    echo '  deluser node 2>/dev/null || true' >> /entrypoint.sh && \
+    echo '  addgroup -g $PGID node 2>/dev/null || true' >> /entrypoint.sh && \
+    echo '  adduser -D -u $PUID -G node node 2>/dev/null || true' >> /entrypoint.sh && \
+    echo '  chown -R node:node /app/backend/data' >> /entrypoint.sh && \
+    echo 'fi' >> /entrypoint.sh && \
+    echo 'exec su-exec node dumb-init -- "$@"' >> /entrypoint.sh && \
+    chmod +x /entrypoint.sh
+
+# Install su-exec for user switching
+RUN apk add --no-cache su-exec
+
+# Use custom entrypoint that handles PUID/PGID
+ENTRYPOINT ["/entrypoint.sh"]
 
 # Expose port
 EXPOSE 3001
