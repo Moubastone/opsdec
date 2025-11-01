@@ -1,10 +1,22 @@
 import { useEffect, useState } from 'react';
 import { getDashboardStats, getActivity } from '../utils/api';
 import { formatDuration, formatTimeAgo } from '../utils/format';
-import { Users, PlayCircle, TrendingUp, Clock, Activity as ActivityIcon } from 'lucide-react';
+import { Users, PlayCircle, TrendingUp, Clock, Activity as ActivityIcon, Film, Tv, Headphones } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 function Dashboard() {
+  const getServerIcon = (serverType) => {
+    switch (serverType) {
+      case 'emby':
+        return <Film className="w-5 h-5 text-green-400" title="Emby" />;
+      case 'plex':
+        return <Tv className="w-5 h-5 text-yellow-400" title="Plex" />;
+      case 'audiobookshelf':
+        return <Headphones className="w-5 h-5 text-blue-400" title="Audiobookshelf" />;
+      default:
+        return null;
+    }
+  };
   // Helper function to format resolution
   const formatResolution = (resolution) => {
     if (!resolution) return null;
@@ -121,24 +133,24 @@ function Dashboard() {
               >
                 <div className="flex p-4 gap-4">
                   {/* Thumbnail */}
-                  <div className="flex-shrink-0 relative w-28 h-40">
+                  <div className="flex-shrink-0 relative w-64 h-96 bg-dark-700 rounded-lg">
                     {session.thumb ? (
                       <img
                         src={`/proxy/image?url=${encodeURIComponent(session.thumb)}`}
                         alt={session.title}
-                        className="w-full h-full object-cover rounded"
+                        className="w-full h-full object-contain rounded-lg"
                         loading="lazy"
                       />
                     ) : null}
                     <div
-                      className="placeholder absolute inset-0 bg-dark-600 rounded flex items-center justify-center"
+                      className="placeholder absolute inset-0 bg-dark-600 rounded-lg flex items-center justify-center"
                       style={{ display: session.thumb ? 'none' : 'flex' }}
                     >
-                      <PlayCircle className="w-8 h-8 text-gray-500" />
+                      <PlayCircle className="w-12 h-12 text-gray-500" />
                     </div>
-                    {/* Platform badge */}
-                    <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded text-xs font-bold bg-dark-900/90 text-white uppercase z-10">
-                      {session.server_type}
+                    {/* Server icon */}
+                    <div className="absolute top-2 left-2 z-10">
+                      {getServerIcon(session.server_type)}
                     </div>
                   </div>
 
