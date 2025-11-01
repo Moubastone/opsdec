@@ -27,9 +27,12 @@ router.get('/history', (req, res) => {
     const userId = req.query.user_id;
 
     let query = `
-      SELECT * FROM history
-      ${userId ? 'WHERE user_id = ?' : ''}
-      ORDER BY watched_at DESC
+      SELECT
+        h.*,
+        (SELECT thumb FROM users WHERE username = h.username AND thumb IS NOT NULL LIMIT 1) as user_thumb
+      FROM history h
+      ${userId ? 'WHERE h.user_id = ?' : ''}
+      ORDER BY h.watched_at DESC
       LIMIT ? OFFSET ?
     `;
 
@@ -204,25 +207,23 @@ router.get('/stats/dashboard', (req, res) => {
       SELECT
         h.username,
         SUM(h.duration) as total_duration,
-        u.thumb
+        (SELECT thumb FROM users WHERE username = h.username AND thumb IS NOT NULL LIMIT 1) as thumb
       FROM history h
-      LEFT JOIN users u ON h.user_id = u.id
       WHERE h.media_type IN ('movie', 'episode')
-      GROUP BY h.user_id, h.username
+      GROUP BY h.username
       ORDER BY total_duration DESC
       LIMIT 10
     `).all();
 
-    // Top listeners (audio content: audiobooks + tracks)
+    // Top listeners (audio content: audiobooks + tracks + books)
     const topListeners = db.prepare(`
       SELECT
         h.username,
         SUM(h.duration) as total_duration,
-        u.thumb
+        (SELECT thumb FROM users WHERE username = h.username AND thumb IS NOT NULL LIMIT 1) as thumb
       FROM history h
-      LEFT JOIN users u ON h.user_id = u.id
-      WHERE h.media_type IN ('audiobook', 'track')
-      GROUP BY h.user_id, h.username
+      WHERE h.media_type IN ('audiobook', 'track', 'book')
+      GROUP BY h.username
       ORDER BY total_duration DESC
       LIMIT 10
     `).all();
@@ -253,7 +254,7 @@ router.get('/stats/dashboard', (req, res) => {
     const mostWatchedAudiobooks = db.prepare(`
       SELECT title, parent_title, media_type, thumb, COUNT(DISTINCT user_id) as plays
       FROM history
-      WHERE media_type IN ('audiobook', 'track')
+      WHERE media_type IN ('audiobook', 'track', 'book')
       GROUP BY media_id
       ORDER BY plays DESC
       LIMIT 10

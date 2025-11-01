@@ -133,7 +133,7 @@ function Dashboard() {
               >
                 <div className="flex p-4 gap-4">
                   {/* Thumbnail */}
-                  <div className="flex-shrink-0 relative w-64 h-96 bg-dark-700 rounded-lg">
+                  <div className="flex-shrink-0 relative w-24 h-36 bg-dark-700 rounded-lg">
                     {session.thumb ? (
                       <img
                         src={`/proxy/image?url=${encodeURIComponent(session.thumb)}`}
@@ -263,7 +263,7 @@ function Dashboard() {
           {stats.topWatchers?.length > 0 && (
             <div className="card min-w-fit">
               <div className="card-header">
-                <h3 className="card-title">Top Watchers</h3>
+                <h3 className="card-title text-center">Top Watchers</h3>
               </div>
               <div className="card-body p-0">
                 <div className="divide-y divide-dark-600">
@@ -302,7 +302,7 @@ function Dashboard() {
           {stats.topListeners?.length > 0 && (
             <div className="card min-w-fit">
               <div className="card-header">
-                <h3 className="card-title">Top Listeners</h3>
+                <h3 className="card-title text-center">Top Listeners</h3>
               </div>
               <div className="card-body p-0">
                 <div className="divide-y divide-dark-600">
@@ -341,7 +341,7 @@ function Dashboard() {
           {stats.mostWatchedMovies?.length > 0 && (
             <div className="card min-w-fit">
               <div className="card-header">
-                <h3 className="card-title">Popular Movies</h3>
+                <h3 className="card-title text-center">Popular Movies</h3>
               </div>
               <div className="card-body p-0">
                 <div className="divide-y divide-dark-600">
@@ -387,7 +387,7 @@ function Dashboard() {
           {stats.mostWatchedEpisodes?.length > 0 && (
             <div className="card min-w-fit">
               <div className="card-header">
-                <h3 className="card-title">Popular TV Shows</h3>
+                <h3 className="card-title text-center">Popular TV Shows</h3>
               </div>
               <div className="card-body p-0">
                 <div className="divide-y divide-dark-600">
@@ -433,7 +433,7 @@ function Dashboard() {
           {stats.mostWatchedAudiobooks?.length > 0 && (
             <div className="card min-w-fit">
               <div className="card-header">
-                <h3 className="card-title">Popular Books</h3>
+                <h3 className="card-title text-center">Popular Books</h3>
               </div>
               <div className="card-body p-0">
                 <div className="divide-y divide-dark-600">

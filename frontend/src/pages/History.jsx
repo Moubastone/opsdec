@@ -103,9 +103,18 @@ function History() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-2">
-                          <div className="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center text-white font-medium text-xs">
-                            {item.username.charAt(0).toUpperCase()}
-                          </div>
+                          {item.user_thumb ? (
+                            <img
+                              src={`/proxy/image?url=${encodeURIComponent(item.user_thumb)}`}
+                              alt={item.username}
+                              className="w-8 h-8 rounded-full object-cover"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center text-white font-medium text-xs">
+                              {item.username.charAt(0).toUpperCase()}
+                            </div>
+                          )}
                           <span className="text-gray-300">{item.username}</span>
                         </div>
                       </td>
