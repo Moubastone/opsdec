@@ -379,7 +379,7 @@ router.post('/servers', (req, res) => {
 
     db.prepare(`
       INSERT INTO servers (id, type, name, url, api_key, enabled, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(id, type, name, url, api_key, enabled !== false ? 1 : 0, now, now);
 
     const server = db.prepare('SELECT * FROM servers WHERE id = ?').get(id);
