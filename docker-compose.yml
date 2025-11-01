@@ -13,6 +13,12 @@ services:
       - PORT=3001
       - NODE_ENV=production
 
+      # Timezone Configuration
+      # Set your timezone for correct peak hour statistics
+      # Examples: America/New_York, Europe/London, Asia/Tokyo
+      # Find your timezone: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+      - TZ=UTC
+
       # User/Group Configuration (for Unraid compatibility)
       # Set to your user's UID/GID if you have permission issues
       # Default: 1000:1000 (standard Docker node user)

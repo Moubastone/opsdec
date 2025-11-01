@@ -277,7 +277,7 @@ function Dashboard() {
                       <div className="flex-1 min-w-0">
                         <div className="text-white text-xs truncate">{user.username}</div>
                         <div className="text-xs text-gray-500">
-                          {user.total_plays} plays • {formatDuration(user.total_duration)}
+                          {formatDuration(user.total_duration)}
                         </div>
                       </div>
                     </div>
