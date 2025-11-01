@@ -1,0 +1,106 @@
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import { WebSocketServer } from 'ws';
+import http from 'http';
+import axios from 'axios';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import { existsSync } from 'fs';
+import { initDatabase } from './database/init.js';
+import { startActivityMonitor } from './services/monitor.js';
+import apiRouter from './routes/api.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// API Routes
+app.use('/api', apiRouter);
+
+// Image proxy to avoid CORS issues
+app.get('/proxy/image', async (req, res) => {
+  try {
+    const imageUrl = req.query.url;
+    if (!imageUrl) {
+      return res.status(400).send('Missing url parameter');
+    }
+
+    const response = await axios.get(imageUrl, {
+      responseType: 'arraybuffer',
+      timeout: 10000,
+    });
+
+    res.set('Content-Type', response.headers['content-type']);
+    res.set('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
+    res.send(response.data);
+  } catch (error) {
+    console.error('Error proxying image:', error.message);
+    res.status(500).send('Error fetching image');
+  }
+});
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', service: 'Astrometrics' });
+});
+
+// Serve frontend in production
+if (IS_PRODUCTION) {
+  const frontendPath = join(__dirname, '../../frontend/dist');
+
+  if (existsSync(frontendPath)) {
+    app.use(express.static(frontendPath));
+
+    app.get('*', (req, res) => {
+      res.sendFile(join(frontendPath, 'index.html'));
+    });
+
+    console.log('📦 Serving frontend from', frontendPath);
+  } else {
+    console.warn('⚠️  Frontend build not found. Run `npm run build` first.');
+  }
+}
+
+// Create HTTP server
+const server = http.createServer(app);
+
+// WebSocket server for real-time updates
+const wss = new WebSocketServer({ server, path: '/ws' });
+
+wss.on('connection', (ws) => {
+  console.log('WebSocket client connected');
+
+  ws.on('close', () => {
+    console.log('WebSocket client disconnected');
+  });
+});
+
+// Broadcast function for WebSocket updates
+export const broadcast = (data) => {
+  wss.clients.forEach((client) => {
+    if (client.readyState === 1) { // OPEN state
+      client.send(JSON.stringify(data));
+    }
+  });
+};
+
+// Initialize database and start server
+initDatabase();
+
+server.listen(PORT, () => {
+  console.log(`🚀 OpsDec backend running on http://localhost:${PORT}`);
+  console.log(`📊 WebSocket server running on ws://localhost:${PORT}/ws`);
+
+  // Start activity monitoring
+  startActivityMonitor();
+});

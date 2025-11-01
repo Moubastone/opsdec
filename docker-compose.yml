@@ -1,0 +1,36 @@
+services:
+  opsdec:
+    build: .
+    container_name: opsdec
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    volumes:
+      # Persist database
+      - ./data:/app/backend/data
+    environment:
+      # Server Configuration
+      - PORT=3001
+      - NODE_ENV=production
+      - DB_PATH=/app/backend/data/opsdec.db
+
+      # Emby Configuration
+      - EMBY_URL=http://your-server-ip:8097
+      - EMBY_API_KEY=your_emby_api_key_here
+
+      # Plex Configuration
+      - PLEX_URL=http://your-server-ip:32401
+      - PLEX_TOKEN=your_plex_token_here
+
+      # Audiobookshelf Configuration (Optional)
+      - AUDIOBOOKSHELF_URL=http://your-server-ip:13378
+      - AUDIOBOOKSHELF_API_KEY=your_audiobookshelf_token_here
+
+      # Polling Configuration
+      - POLL_INTERVAL=30
+    networks:
+      - opsdec
+
+networks:
+  opsdec:
+    name: opsdec

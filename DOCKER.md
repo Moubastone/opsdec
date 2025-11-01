@@ -1,0 +1,400 @@
+# Astrometrics - Docker Deployment Guide
+
+Complete guide for deploying Astrometrics using Docker.
+
+## Quick Start with Docker Compose
+
+1. **Create a docker-compose.yml file:**
+
+```yaml
+version: '3.8'
+
+services:
+  astrometrics:
+    image: astrometrics:latest  # Or build from source
+    container_name: astrometrics
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./data:/app/backend/data
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DB_PATH=/app/backend/data/astrometrics.db
+      # Plex Configuration
+      - PLEX_URL=http://192.168.1.100:32400
+      - PLEX_TOKEN=your_plex_token_here
+      # Emby Configuration
+      - EMBY_URL=http://192.168.1.101:8096
+      - EMBY_API_KEY=your_emby_api_key_here
+      # Polling
+      - POLL_INTERVAL=30
+```
+
+2. **Start the container:**
+
+```bash
+docker-compose up -d
+```
+
+3. **View logs:**
+
+```bash
+docker-compose logs -f
+```
+
+4. **Access the UI:**
+
+Open http://localhost:3001 in your browser
+
+## Building from Source
+
+### Clone and Build
+
+```bash
+git clone <repository-url>
+cd astrometrics
+docker build -t astrometrics:latest .
+```
+
+### Run
+
+```bash
+docker run -d \
+  --name astrometrics \
+  --restart unless-stopped \
+  -p 3001:3001 \
+  -v $(pwd)/data:/app/backend/data \
+  -e NODE_ENV=production \
+  -e PLEX_URL=http://your-plex:32400 \
+  -e PLEX_TOKEN=your_plex_token \
+  -e EMBY_URL=http://your-emby:8096 \
+  -e EMBY_API_KEY=your_emby_key \
+  astrometrics:latest
+```
+
+## Environment Variables
+
+### Required
+
+- `PORT` - Port to run the server on (default: 3001)
+- `NODE_ENV` - Set to "production" for production deployments
+- `DB_PATH` - Path to SQLite database file
+
+### Optional - Plex
+
+- `PLEX_URL` - URL to your Plex server (e.g., http://192.168.1.100:32400)
+- `PLEX_TOKEN` - Your Plex authentication token
+
+### Optional - Emby
+
+- `EMBY_URL` - URL to your Emby server (e.g., http://192.168.1.101:8096)
+- `EMBY_API_KEY` - Your Emby API key
+
+### Optional - Configuration
+
+- `POLL_INTERVAL` - How often to check for activity in seconds (default: 30)
+
+## Docker Network Configuration
+
+### Connecting to Media Servers on Host
+
+If your media servers are running on the host machine:
+
+**Linux:**
+```yaml
+environment:
+  - PLEX_URL=http://172.17.0.1:32400
+```
+
+**macOS/Windows (Docker Desktop):**
+```yaml
+environment:
+  - PLEX_URL=http://host.docker.internal:32400
+```
+
+### Connecting to Media Servers in Other Containers
+
+If your media servers are in Docker containers on the same network:
+
+```yaml
+version: '3.8'
+
+services:
+  plex:
+    image: plexinc/pms-docker
+    container_name: plex
+    networks:
+      - media
+
+  astrometrics:
+    image: astrometrics:latest
+    container_name: astrometrics
+    environment:
+      - PLEX_URL=http://plex:32400
+      - PLEX_TOKEN=your_token
+    networks:
+      - media
+
+networks:
+  media:
+    name: media
+```
+
+## Volume Mounts
+
+### Database Persistence
+
+**Required:** Mount a volume to persist the database:
+
+```yaml
+volumes:
+  - ./data:/app/backend/data
+```
+
+Or use a named volume:
+
+```yaml
+volumes:
+  - astrometrics-data:/app/backend/data
+
+volumes:
+  astrometrics-data:
+```
+
+### Configuration File (Optional)
+
+You can mount a .env file instead of using environment variables:
+
+```yaml
+volumes:
+  - ./backend/.env:/app/backend/.env:ro
+```
+
+## Docker Compose Examples
+
+### Plex Only
+
+```yaml
+version: '3.8'
+
+services:
+  astrometrics:
+    image: astrometrics:latest
+    container_name: astrometrics
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./data:/app/backend/data
+    environment:
+      - NODE_ENV=production
+      - PLEX_URL=http://192.168.1.100:32400
+      - PLEX_TOKEN=your_plex_token
+      - POLL_INTERVAL=30
+```
+
+### Emby Only
+
+```yaml
+version: '3.8'
+
+services:
+  astrometrics:
+    image: astrometrics:latest
+    container_name: astrometrics
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./data:/app/backend/data
+    environment:
+      - NODE_ENV=production
+      - EMBY_URL=http://192.168.1.101:8096
+      - EMBY_API_KEY=your_emby_api_key
+      - POLL_INTERVAL=30
+```
+
+### Both Plex and Emby
+
+```yaml
+version: '3.8'
+
+services:
+  astrometrics:
+    image: astrometrics:latest
+    container_name: astrometrics
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./data:/app/backend/data
+    environment:
+      - NODE_ENV=production
+      # Plex
+      - PLEX_URL=http://192.168.1.100:32400
+      - PLEX_TOKEN=your_plex_token
+      # Emby
+      - EMBY_URL=http://192.168.1.101:8096
+      - EMBY_API_KEY=your_emby_api_key
+      # Config
+      - POLL_INTERVAL=30
+```
+
+## Reverse Proxy Configuration
+
+### Nginx
+
+```nginx
+server {
+    listen 80;
+    server_name astrometrics.example.com;
+
+    location / {
+        proxy_pass http://localhost:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    # WebSocket support
+    location /ws {
+        proxy_pass http://localhost:3001/ws;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "Upgrade";
+        proxy_set_header Host $host;
+    }
+}
+```
+
+### Traefik
+
+```yaml
+version: '3.8'
+
+services:
+  astrometrics:
+    image: astrometrics:latest
+    container_name: astrometrics
+    restart: unless-stopped
+    volumes:
+      - ./data:/app/backend/data
+    environment:
+      - NODE_ENV=production
+      - PLEX_URL=http://plex:32400
+      - PLEX_TOKEN=your_token
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.astrometrics.rule=Host(`astrometrics.example.com`)"
+      - "traefik.http.routers.astrometrics.entrypoints=web"
+      - "traefik.http.services.astrometrics.loadbalancer.server.port=3001"
+    networks:
+      - traefik
+
+networks:
+  traefik:
+    external: true
+```
+
+## Troubleshooting
+
+### Container won't start
+
+Check logs:
+```bash
+docker logs astrometrics
+```
+
+### Can't connect to media server
+
+1. Verify the URL is accessible from inside the container:
+```bash
+docker exec astrometrics wget -O- http://your-server:port
+```
+
+2. Check network connectivity:
+```bash
+docker exec astrometrics ping your-server-hostname
+```
+
+3. For host-based servers, use `host.docker.internal` (Docker Desktop) or `172.17.0.1` (Linux)
+
+### Database errors
+
+Remove and recreate the database:
+```bash
+docker-compose down
+rm -rf data/
+docker-compose up -d
+```
+
+### Permission issues
+
+Ensure the data directory has correct permissions:
+```bash
+chown -R 1000:1000 ./data
+```
+
+## Health Check
+
+The container includes a health check. View status:
+
+```bash
+docker inspect --format='{{.State.Health.Status}}' astrometrics
+```
+
+Manual health check:
+```bash
+curl http://localhost:3001/health
+```
+
+Expected response:
+```json
+{"status":"ok","service":"Astrometrics"}
+```
+
+## Updating
+
+### Pull latest image
+
+```bash
+docker-compose pull
+docker-compose up -d
+```
+
+### Rebuild from source
+
+```bash
+git pull
+docker-compose build --no-cache
+docker-compose up -d
+```
+
+## Backup
+
+### Backup database
+
+```bash
+docker-compose exec astrometrics sqlite3 /app/backend/data/astrometrics.db .dump > backup.sql
+```
+
+Or simply copy the database file:
+```bash
+cp data/astrometrics.db data/astrometrics.db.backup
+```
+
+### Restore database
+
+```bash
+docker-compose down
+cp data/astrometrics.db.backup data/astrometrics.db
+docker-compose up -d
+```
+
+---
+
+For more information, see the main [README.md](README.md)
