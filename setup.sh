@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Astrometrics Setup Script"
+echo "🚀 OpsDec Setup Script"
 echo "============================"
 echo ""
 

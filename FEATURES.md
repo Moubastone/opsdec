@@ -1,4 +1,4 @@
-# Astrometrics - Feature Overview
+# OpsDec - Feature Overview
 
 ## Current Features (v0.1.0)
 
@@ -116,7 +116,7 @@
 
 ## Feature Comparison
 
-| Feature | Tautulli | Astrometrics |
+| Feature | Tautulli | OpsDec |
 |---------|----------|--------------|
 | Plex Support | ✅ | ✅ |
 | Emby Support | ❌ | ✅ |

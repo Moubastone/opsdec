@@ -1,7 +1,7 @@
 {
-  "name": "astrometrics-backend",
+  "name": "opsdec-backend",
   "version": "0.1.0",
-  "description": "Astrometrics backend server",
+  "description": "OpsDec backend server",
   "type": "module",
   "main": "src/index.js",
   "scripts": {

@@ -1,8 +1,8 @@
-# Astrometrics
+# OpsDec
 
 A modern, self-hosted media server monitoring and statistics platform inspired by Tautulli. Track your Plex, Emby, and Audiobookshelf server activity with real-time monitoring, detailed statistics, and a beautiful dark-themed interface.
 
-![Astrometrics](https://img.shields.io/badge/version-0.1.0-blue)
+![OpsDec](https://img.shields.io/badge/version-0.1.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Docker](https://img.shields.io/badge/docker-ready-blue)
 
@@ -45,7 +45,7 @@ A modern, self-hosted media server monitoring and statistics platform inspired b
 
 ### Option 1: Docker (Recommended)
 
-The easiest way to run Astrometrics is with Docker:
+The easiest way to run OpsDec is with Docker:
 
 #### Using Docker Compose
 
@@ -76,17 +76,17 @@ docker-compose up -d
 #### Using Docker CLI
 
 ```bash
-docker build -t astrometrics .
+docker build -t opsdec .
 
 docker run -d \
-  --name astrometrics \
+  --name opsdec \
   -p 3001:3001 \
   -v $(pwd)/data:/app/backend/data \
   -e PLEX_URL=http://your-plex-server:32400 \
   -e PLEX_TOKEN=your_plex_token \
   -e EMBY_URL=http://your-emby-server:8096 \
   -e EMBY_API_KEY=your_emby_api_key \
-  astrometrics
+  opsdec
 ```
 
 ### Option 2: Manual Installation
@@ -95,7 +95,7 @@ docker run -d \
 
 ```bash
 git clone <repository-url>
-cd astrometrics
+cd opsdec
 ```
 
 ### 2. Install dependencies
@@ -122,7 +122,7 @@ PORT=3001
 NODE_ENV=development
 
 # Database
-DB_PATH=./data/astrometrics.db
+DB_PATH=./data/opsdec.db
 
 # Plex Configuration (optional - leave blank if not using)
 PLEX_URL=http://localhost:32400
@@ -149,7 +149,7 @@ POLL_INTERVAL=30
 # Get token via curl (replace username and password)
 curl -X POST \
   'https://plex.tv/users/sign_in.xml' \
-  -H 'X-Plex-Client-Identifier: astrometrics' \
+  -H 'X-Plex-Client-Identifier: opsdec' \
   -d 'user[login]=your_email' \
   -d 'user[password]=your_password'
 ```
@@ -160,7 +160,7 @@ Look for `<authentication-token>` in the response.
 1. Log into your Emby server
 2. Go to **Settings** → **Advanced** → **API Keys**
 3. Click **New API Key**
-4. Enter "Astrometrics" as the app name
+4. Enter "OpsDec" as the app name
 5. Copy the generated API key
 
 ### 4. Start the application
@@ -177,7 +177,7 @@ This will start:
 
 ## Multi-Server Configuration
 
-Astrometrics can monitor multiple media servers simultaneously. You can configure:
+OpsDec can monitor multiple media servers simultaneously. You can configure:
 
 - **Plex only** - Set `PLEX_URL` and `PLEX_TOKEN`, leave Emby variables blank
 - **Emby only** - Set `EMBY_URL` and `EMBY_API_KEY`, leave Plex variables blank
@@ -214,7 +214,7 @@ The backend automatically serves the frontend in production mode from the `/fron
 ## Project Structure
 
 ```
-astrometrics/
+opsdec/
 ├── backend/
 │   ├── src/
 │   │   ├── database/

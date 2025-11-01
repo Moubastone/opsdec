@@ -1,6 +1,6 @@
-# Astrometrics - Quick Start Guide
+# OpsDec - Quick Start Guide
 
-Get up and running with Astrometrics in just a few minutes!
+Get up and running with OpsDec in just a few minutes!
 
 ## Prerequisites
 
@@ -44,7 +44,7 @@ npm run dev
 1. Open your Emby web interface
 2. Navigate to: **Dashboard** → **Advanced** → **Security** → **API Keys**
 3. Click **New API Key** (the + button)
-4. Name: `Astrometrics`
+4. Name: `OpsDec`
 5. Copy the generated key
 6. Paste it into `backend/.env` as `EMBY_API_KEY`
 
@@ -90,7 +90,7 @@ Then configure your web server (Nginx, Apache, etc.) to serve the frontend and p
 ## Verifying Everything Works
 
 1. Open http://localhost:3000 in your browser
-2. You should see the Astrometrics dashboard
+2. You should see the OpsDec dashboard
 3. Start playing something on your Emby server
 4. Within 30 seconds (or your POLL_INTERVAL), you should see it appear in the "Current Activity" section
 
@@ -137,14 +137,14 @@ You should see:
 **Solution:**
 ```bash
 # Remove and recreate the database
-rm -f backend/data/astrometrics.db
+rm -f backend/data/opsdec.db
 # Restart the backend - it will recreate the database
 npm run dev:backend
 ```
 
 ## Default Credentials
 
-Astrometrics doesn't require authentication by default. For production deployments, consider:
+OpsDec doesn't require authentication by default. For production deployments, consider:
 - Running behind a reverse proxy with authentication
 - Restricting access via firewall rules
 - Only exposing on localhost/internal network

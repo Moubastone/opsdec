@@ -1,6 +1,6 @@
-# Astrometrics - Docker Deployment Guide
+# OpsDec - Docker Deployment Guide
 
-Complete guide for deploying Astrometrics using Docker.
+Complete guide for deploying OpsDec using Docker.
 
 ## Quick Start with Docker Compose
 
@@ -10,9 +10,9 @@ Complete guide for deploying Astrometrics using Docker.
 version: '3.8'
 
 services:
-  astrometrics:
-    image: astrometrics:latest  # Or build from source
-    container_name: astrometrics
+  opsdec:
+    image: opsdec:latest  # Or build from source
+    container_name: opsdec
     restart: unless-stopped
     ports:
       - "3001:3001"
@@ -21,7 +21,7 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3001
-      - DB_PATH=/app/backend/data/astrometrics.db
+      - DB_PATH=/app/backend/data/opsdec.db
       # Plex Configuration
       - PLEX_URL=http://192.168.1.100:32400
       - PLEX_TOKEN=your_plex_token_here
@@ -54,15 +54,15 @@ Open http://localhost:3001 in your browser
 
 ```bash
 git clone <repository-url>
-cd astrometrics
-docker build -t astrometrics:latest .
+cd opsdec
+docker build -t opsdec:latest .
 ```
 
 ### Run
 
 ```bash
 docker run -d \
-  --name astrometrics \
+  --name opsdec \
   --restart unless-stopped \
   -p 3001:3001 \
   -v $(pwd)/data:/app/backend/data \
@@ -71,7 +71,7 @@ docker run -d \
   -e PLEX_TOKEN=your_plex_token \
   -e EMBY_URL=http://your-emby:8096 \
   -e EMBY_API_KEY=your_emby_key \
-  astrometrics:latest
+  opsdec:latest
 ```
 
 ## Environment Variables
@@ -128,9 +128,9 @@ services:
     networks:
       - media
 
-  astrometrics:
-    image: astrometrics:latest
-    container_name: astrometrics
+  opsdec:
+    image: opsdec:latest
+    container_name: opsdec
     environment:
       - PLEX_URL=http://plex:32400
       - PLEX_TOKEN=your_token
@@ -157,10 +157,10 @@ Or use a named volume:
 
 ```yaml
 volumes:
-  - astrometrics-data:/app/backend/data
+  - opsdec-data:/app/backend/data
 
 volumes:
-  astrometrics-data:
+  opsdec-data:
 ```
 
 ### Configuration File (Optional)
@@ -180,9 +180,9 @@ volumes:
 version: '3.8'
 
 services:
-  astrometrics:
-    image: astrometrics:latest
-    container_name: astrometrics
+  opsdec:
+    image: opsdec:latest
+    container_name: opsdec
     restart: unless-stopped
     ports:
       - "3001:3001"
@@ -201,9 +201,9 @@ services:
 version: '3.8'
 
 services:
-  astrometrics:
-    image: astrometrics:latest
-    container_name: astrometrics
+  opsdec:
+    image: opsdec:latest
+    container_name: opsdec
     restart: unless-stopped
     ports:
       - "3001:3001"
@@ -222,9 +222,9 @@ services:
 version: '3.8'
 
 services:
-  astrometrics:
-    image: astrometrics:latest
-    container_name: astrometrics
+  opsdec:
+    image: opsdec:latest
+    container_name: opsdec
     restart: unless-stopped
     ports:
       - "3001:3001"
@@ -249,7 +249,7 @@ services:
 ```nginx
 server {
     listen 80;
-    server_name astrometrics.example.com;
+    server_name opsdec.example.com;
 
     location / {
         proxy_pass http://localhost:3001;
@@ -277,9 +277,9 @@ server {
 version: '3.8'
 
 services:
-  astrometrics:
-    image: astrometrics:latest
-    container_name: astrometrics
+  opsdec:
+    image: opsdec:latest
+    container_name: opsdec
     restart: unless-stopped
     volumes:
       - ./data:/app/backend/data
@@ -289,9 +289,9 @@ services:
       - PLEX_TOKEN=your_token
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.astrometrics.rule=Host(`astrometrics.example.com`)"
-      - "traefik.http.routers.astrometrics.entrypoints=web"
-      - "traefik.http.services.astrometrics.loadbalancer.server.port=3001"
+      - "traefik.http.routers.opsdec.rule=Host(`opsdec.example.com`)"
+      - "traefik.http.routers.opsdec.entrypoints=web"
+      - "traefik.http.services.opsdec.loadbalancer.server.port=3001"
     networks:
       - traefik
 
@@ -306,19 +306,19 @@ networks:
 
 Check logs:
 ```bash
-docker logs astrometrics
+docker logs opsdec
 ```
 
 ### Can't connect to media server
 
 1. Verify the URL is accessible from inside the container:
 ```bash
-docker exec astrometrics wget -O- http://your-server:port
+docker exec opsdec wget -O- http://your-server:port
 ```
 
 2. Check network connectivity:
 ```bash
-docker exec astrometrics ping your-server-hostname
+docker exec opsdec ping your-server-hostname
 ```
 
 3. For host-based servers, use `host.docker.internal` (Docker Desktop) or `172.17.0.1` (Linux)
@@ -344,7 +344,7 @@ chown -R 1000:1000 ./data
 The container includes a health check. View status:
 
 ```bash
-docker inspect --format='{{.State.Health.Status}}' astrometrics
+docker inspect --format='{{.State.Health.Status}}' opsdec
 ```
 
 Manual health check:
@@ -354,7 +354,7 @@ curl http://localhost:3001/health
 
 Expected response:
 ```json
-{"status":"ok","service":"Astrometrics"}
+{"status":"ok","service":"OpsDec"}
 ```
 
 ## Updating
@@ -379,19 +379,19 @@ docker-compose up -d
 ### Backup database
 
 ```bash
-docker-compose exec astrometrics sqlite3 /app/backend/data/astrometrics.db .dump > backup.sql
+docker-compose exec opsdec sqlite3 /app/backend/data/opsdec.db .dump > backup.sql
 ```
 
 Or simply copy the database file:
 ```bash
-cp data/astrometrics.db data/astrometrics.db.backup
+cp data/opsdec.db data/opsdec.db.backup
 ```
 
 ### Restore database
 
 ```bash
 docker-compose down
-cp data/astrometrics.db.backup data/astrometrics.db
+cp data/opsdec.db.backup data/opsdec.db
 docker-compose up -d
 ```
 

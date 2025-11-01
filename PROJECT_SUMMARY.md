@@ -1,8 +1,8 @@
-# Astrometrics - Project Summary
+# OpsDec - Project Summary
 
 ## Overview
 
-Astrometrics is a modern, self-hosted media server monitoring platform inspired by Tautulli. It provides real-time activity monitoring, detailed statistics, and comprehensive watch history for Plex and Emby media servers.
+OpsDec is a modern, self-hosted media server monitoring platform inspired by Tautulli. It provides real-time activity monitoring, detailed statistics, and comprehensive watch history for Plex and Emby media servers.
 
 ## What's Been Built
 
@@ -63,7 +63,7 @@ Astrometrics is a modern, self-hosted media server monitoring platform inspired 
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     Astrometrics                             │
+│                     OpsDec                             │
 ├─────────────────────────────────────────────────────────────┤
 │                                                              │
 │  ┌──────────────┐          ┌──────────────┐               │
@@ -149,7 +149,7 @@ PORT=3001
 NODE_ENV=production
 
 # Database
-DB_PATH=/app/backend/data/astrometrics.db
+DB_PATH=/app/backend/data/opsdec.db
 
 # Plex (optional)
 PLEX_URL=http://plex-server:32400
@@ -213,7 +213,7 @@ npm run dev
 ## File Structure
 
 ```
-astrometrics/
+opsdec/
 ├── backend/
 │   ├── src/
 │   │   ├── database/

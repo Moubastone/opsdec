@@ -51,7 +51,7 @@ app.get('/proxy/image', async (req, res) => {
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', service: 'Astrometrics' });
+  res.json({ status: 'ok', service: 'OpsDec' });
 });
 
 // Serve frontend in production

@@ -1,7 +1,7 @@
 {
-  "name": "astrometrics",
+  "name": "opsdec",
   "version": "0.1.0",
-  "description": "Media server monitoring and statistics platform for Emby and Audiobookshelf",
+  "description": "Media server monitoring and statistics platform for Plex, Emby and Audiobookshelf",
   "private": true,
   "workspaces": [
     "backend",
