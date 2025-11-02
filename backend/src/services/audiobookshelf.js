@@ -182,7 +182,7 @@ class AudiobookshelfService {
       console.log(`Found ${activeSessions.length} active Audiobookshelf sessions out of ${sessions.length} total open sessions (updated within last 30 seconds)`);
 
       for (const session of activeSessions) {
-        const activity = this.parsePlaybackSession(session);
+        const activity = await this.parsePlaybackSession(session);
         if (activity) {
           activeStreams.push(activity);
         }
@@ -195,7 +195,7 @@ class AudiobookshelfService {
     }
   }
 
-  parsePlaybackSession(session) {
+  async parsePlaybackSession(session) {
     try {
       // Use the direct session data structure from Audiobookshelf API
       const metadata = session.mediaMetadata || {};
@@ -204,6 +204,26 @@ class AudiobookshelfService {
       // Ensure required fields are present
       if (!session.id || !session.userId || !session.libraryItemId) {
         return null;
+      }
+
+      // Fetch library item details to get audio file info
+      let audioCodec = null;
+      let container = null;
+      let bitrate = null;
+      let channels = null;
+      try {
+        const itemResponse = await this.client.get(`/api/items/${session.libraryItemId}`);
+        const audioFiles = itemResponse.data?.media?.audioFiles || [];
+        if (audioFiles.length > 0) {
+          const firstAudioFile = audioFiles[0];
+          audioCodec = firstAudioFile.codec || null;
+          container = firstAudioFile.format || null;
+          bitrate = firstAudioFile.bitRate || null;
+          channels = firstAudioFile.channels || null;
+        }
+      } catch (itemError) {
+        // If we can't fetch item details, just continue without audio info
+        console.log(`Could not fetch audio details for ${session.libraryItemId}`);
       }
 
       return {
@@ -229,12 +249,13 @@ class AudiobookshelfService {
         clientName: session.deviceInfo?.clientName || 'Audiobookshelf',
         deviceName: session.deviceInfo?.deviceName || 'Unknown Device',
         platform: 'Audiobookshelf',
-        bitrate: null,
+        bitrate: bitrate,
         transcoding: false,
         videoCodec: null,
-        audioCodec: null,
-        container: null,
+        audioCodec: audioCodec,
+        container: container,
         resolution: null,
+        audioChannels: channels,
       };
     } catch (error) {
       console.error('Error parsing Audiobookshelf playback session:', error.message);

@@ -252,13 +252,25 @@ function Dashboard() {
                       {session.audio_codec && (
                         <span className="text-gray-400">{session.audio_codec.toUpperCase()}</span>
                       )}
-                      {session.bitrate && (
-                        <span className="text-primary-400 font-semibold">{session.bitrate} Mbps</span>
+                      {session.container && (
+                        <span className="text-gray-400">{session.container.toUpperCase()}</span>
                       )}
-                      {session.transcoding === 1 ? (
-                        <span className="text-yellow-500 font-semibold whitespace-nowrap">Transcoding</span>
-                      ) : (
-                        <span className="text-green-500 font-semibold whitespace-nowrap">Direct Play</span>
+                      {session.bitrate && (
+                        <span className="text-primary-400 font-semibold">
+                          {session.server_type === 'audiobookshelf'
+                            ? `${Math.round(session.bitrate / 1000)} kbps`
+                            : `${session.bitrate} Mbps`}
+                        </span>
+                      )}
+                      {session.audio_channels && (
+                        <span className="text-gray-400">{session.audio_channels === 1 ? 'Mono' : session.audio_channels === 2 ? 'Stereo' : `${session.audio_channels}ch`}</span>
+                      )}
+                      {session.server_type !== 'audiobookshelf' && (
+                        session.transcoding === 1 ? (
+                          <span className="text-yellow-500 font-semibold whitespace-nowrap">Transcoding</span>
+                        ) : (
+                          <span className="text-green-500 font-semibold whitespace-nowrap">Direct Play</span>
+                        )
                       )}
                     </div>
                   </div>
