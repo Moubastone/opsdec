@@ -7,13 +7,13 @@
   <MyIP/>
   <Shell>sh</Shell>
   <Privileged>false</Privileged>
-  <Support>https://github.com/yourusername/opsdec/issues</Support>
-  <Project>https://github.com/yourusername/opsdec</Project>
+  <Support>https://git.bitstorm.ca/global_dynamics/opsdec/issues</Support>
+  <Project>https://git.bitstorm.ca/global_dynamics/opsdec</Project>
   <Overview>OpsDec is a unified media server monitoring dashboard that tracks activity across Plex, Emby, and Audiobookshelf. View real-time streams, playback history, user statistics, and server health in a beautiful, modern interface.</Overview>
   <Category>MediaApp:Other Status:Stable</Category>
   <WebUI>http://[IP]:[PORT:3001]</WebUI>
-  <TemplateURL>https://raw.githubusercontent.com/yourusername/opsdec/main/opsdec-unraid-template.xml</TemplateURL>
-  <Icon>https://raw.githubusercontent.com/yourusername/opsdec/main/frontend/public/logo-icon.svg</Icon>
+  <TemplateURL>https://git.bitstorm.ca/global_dynamics/opsdec/raw/branch/main/opsdec-unraid-template.xml</TemplateURL>
+  <Icon>https://git.bitstorm.ca/global_dynamics/opsdec/raw/branch/main/frontend/public/logo-icon.svg</Icon>
   <ExtraParams/>
   <PostArgs/>
   <CPUset/>
