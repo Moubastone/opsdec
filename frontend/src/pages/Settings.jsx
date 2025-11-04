@@ -352,7 +352,7 @@ export default function Settings() {
               {servers.map((server) => {
                 const typeInfo = getServerTypeLabel(server.type);
                 return (
-                  <div key={server.id} className="p-6 hover:bg-dark-750 transition-colors">
+                  <div key={server.id} className={`p-6 transition-colors ${server.from_env ? 'bg-dark-750/50' : 'hover:bg-dark-750'}`}>
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3 mb-3 flex-wrap">
@@ -370,8 +370,20 @@ export default function Settings() {
                               Disabled
                             </span>
                           )}
+                          {server.from_env && (
+                            <span className="px-3 py-1 text-sm font-medium rounded-full bg-blue-500/20 text-blue-400 flex items-center gap-1">
+                              <AlertCircle className="w-3.5 h-3.5" />
+                              Environment Variable
+                            </span>
+                          )}
                         </div>
                         <p className="text-gray-400 mb-3 font-mono text-sm">{server.url}</p>
+                        {server.from_env && (
+                          <p className="text-yellow-400/80 text-sm mb-3 flex items-start gap-2">
+                            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                            <span>This server is configured via environment variables and cannot be edited or deleted through the UI.</span>
+                          </p>
+                        )}
                         {testResults[server.id] && (
                           <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium ${
                             testResults[server.id].success 
@@ -390,23 +402,27 @@ export default function Settings() {
                       <div className="flex gap-2 flex-shrink-0">
                         <button
                           onClick={() => handleTest(server.id)}
-                          disabled={testing[server.id]}
+                          disabled={testing[server.id] || server.from_env}
                           className="px-4 py-2 bg-dark-700 hover:bg-dark-600 disabled:bg-dark-750 disabled:opacity-50 text-gray-300 rounded-lg font-medium transition-colors"
                         >
                           {testing[server.id] ? 'Testing...' : 'Test'}
                         </button>
-                        <button
-                          onClick={() => handleEdit(server)}
-                          className="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-lg font-medium transition-colors"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(server.id)}
-                          className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg font-medium transition-colors"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
+                        {!server.from_env && (
+                          <>
+                            <button
+                              onClick={() => handleEdit(server)}
+                              className="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-lg font-medium transition-colors"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDelete(server.id)}
+                              className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg font-medium transition-colors"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>

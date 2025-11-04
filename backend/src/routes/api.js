@@ -468,11 +468,70 @@ router.get('/audiobookshelf/libraries', async (req, res) => {
 });
 
 // Server Configuration Endpoints
-// Get all servers
+// Get all servers (including environment variable servers)
 router.get('/servers', (req, res) => {
   try {
-    const servers = db.prepare('SELECT * FROM servers ORDER BY created_at ASC').all();
-    res.json({ success: true, data: servers });
+    const dbServers = db.prepare('SELECT * FROM servers ORDER BY created_at ASC').all();
+
+    // Add environment variable servers if they exist and aren't in the database
+    const envServers = [];
+
+    // Check Plex
+    if (process.env.PLEX_URL && process.env.PLEX_TOKEN) {
+      const existingPlex = dbServers.find(s => s.type === 'plex' && s.url === process.env.PLEX_URL);
+      if (!existingPlex) {
+        envServers.push({
+          id: 'env-plex',
+          type: 'plex',
+          name: 'Plex (Environment)',
+          url: process.env.PLEX_URL,
+          api_key: '***', // Masked for security
+          enabled: 1,
+          from_env: true,
+          created_at: null,
+          updated_at: null
+        });
+      }
+    }
+
+    // Check Emby
+    if (process.env.EMBY_URL && process.env.EMBY_API_KEY) {
+      const existingEmby = dbServers.find(s => s.type === 'emby' && s.url === process.env.EMBY_URL);
+      if (!existingEmby) {
+        envServers.push({
+          id: 'env-emby',
+          type: 'emby',
+          name: 'Emby (Environment)',
+          url: process.env.EMBY_URL,
+          api_key: '***', // Masked for security
+          enabled: 1,
+          from_env: true,
+          created_at: null,
+          updated_at: null
+        });
+      }
+    }
+
+    // Check Audiobookshelf
+    if (process.env.AUDIOBOOKSHELF_URL && process.env.AUDIOBOOKSHELF_TOKEN) {
+      const existingABS = dbServers.find(s => s.type === 'audiobookshelf' && s.url === process.env.AUDIOBOOKSHELF_URL);
+      if (!existingABS) {
+        envServers.push({
+          id: 'env-audiobookshelf',
+          type: 'audiobookshelf',
+          name: 'Audiobookshelf (Environment)',
+          url: process.env.AUDIOBOOKSHELF_URL,
+          api_key: '***', // Masked for security
+          enabled: 1,
+          from_env: true,
+          created_at: null,
+          updated_at: null
+        });
+      }
+    }
+
+    const allServers = [...envServers, ...dbServers];
+    res.json({ success: true, data: allServers });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
