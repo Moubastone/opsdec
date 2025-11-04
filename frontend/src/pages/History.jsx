@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { getHistory } from '../utils/api';
+import { getHistory, deleteHistoryItem } from '../utils/api';
 import { formatTimestamp, formatMediaType, formatDuration } from '../utils/format';
-import { History as HistoryIcon, PlayCircle, Search, Filter, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { History as HistoryIcon, PlayCircle, Search, Filter, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
 
 const getServerIcon = (serverType) => {
   switch (serverType) {
@@ -150,6 +150,21 @@ function History() {
     setFilterUser('');
     setFilterServer('');
     setFilterType('');
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this history entry?')) {
+      return;
+    }
+
+    try {
+      await deleteHistoryItem(id);
+      // Remove from local state
+      setAllHistory(prev => prev.filter(item => item.id !== id));
+    } catch (error) {
+      console.error('Error deleting history item:', error);
+      alert('Failed to delete history item');
+    }
   };
 
   const handleSort = (field) => {
@@ -387,6 +402,9 @@ function History() {
                         {getSortIcon('watched_at')}
                       </div>
                     </th>
+                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-300">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-dark-700">
@@ -456,6 +474,17 @@ function History() {
                       </td>
                       <td className="px-6 py-4">
                         <span className="text-gray-400 text-sm">{formatTimestamp(item.watched_at)}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex justify-center">
+                          <button
+                            onClick={() => handleDelete(item.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-500/10 rounded transition-colors"
+                            title="Delete entry"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

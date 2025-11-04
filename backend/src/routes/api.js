@@ -63,6 +63,22 @@ router.get('/history', (req, res) => {
   }
 });
 
+// Delete history item
+router.delete('/history/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = db.prepare('DELETE FROM history WHERE id = ?').run(id);
+
+    if (result.changes === 0) {
+      return res.status(404).json({ success: false, error: 'History item not found' });
+    }
+
+    res.json({ success: true, message: 'History item deleted' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Get users
 router.get('/users', (req, res) => {
   try {

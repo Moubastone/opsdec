@@ -6,6 +6,7 @@ const api = axios.create({
 
 export const getActivity = () => api.get('/activity');
 export const getHistory = (params = {}) => api.get('/history', { params });
+export const deleteHistoryItem = (id) => api.delete(`/history/${id}`);
 export const getUsers = () => api.get('/users');
 export const getUserStats = (userId) => api.get(`/users/${userId}/stats`);
 export const getDashboardStats = () => api.get('/stats/dashboard');
