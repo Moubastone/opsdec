@@ -87,20 +87,23 @@ docker run -d \
 
 **Note:** `NODE_ENV` is automatically set to `production` in the Docker image.
 
-### Optional - Plex
+### Optional - Media Servers
 
+Configure servers via environment variables (recommended for Docker) or through the Settings UI.
+
+**Plex:**
 - `PLEX_URL` - URL to your Plex server (e.g., http://192.168.1.100:32400)
 - `PLEX_TOKEN` - Your Plex authentication token
 
-### Optional - Emby
-
+**Emby:**
 - `EMBY_URL` - URL to your Emby server (e.g., http://192.168.1.101:8096)
 - `EMBY_API_KEY` - Your Emby API key
 
-### Optional - Audiobookshelf
-
+**Audiobookshelf:**
 - `AUDIOBOOKSHELF_URL` - URL to your Audiobookshelf server (e.g., http://192.168.1.102:13378)
 - `AUDIOBOOKSHELF_TOKEN` - Your Audiobookshelf API token
+
+**UI Configuration:** You can also add servers through the Settings page in the web interface. Environment variable servers will appear in Settings as read-only with an "Environment Variable" badge.
 
 ### Optional - Configuration
 

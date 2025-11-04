@@ -203,6 +203,9 @@ npm run dev
 ✅ **Advanced search** - Full-text search across media and users
 ✅ **Flexible pagination** - Multiple page size options
 ✅ **Server logos** - Visual identification of media servers
+✅ **Settings UI** - Manage servers through web interface
+✅ **Dual configuration** - Environment variables or UI configuration
+✅ **Environment badge** - Visual indicators for env-configured servers
 
 ## Future Enhancements
 

@@ -1,6 +1,6 @@
 # OpsDec - Feature Overview
 
-## Current Features (v0.1.0)
+## Current Features (v0.2.0)
 
 ### 📊 Real-Time Monitoring
 - **Live Activity Dashboard** - See who's watching what, right now
@@ -80,6 +80,8 @@
 - **Interactive Charts** - Visual play history
 - **Media Thumbnails** - Poster art and backdrop images
 - **Progress Indicators** - Visual playback progress bars
+- **Settings UI** - Manage server configurations through web interface
+- **Environment Badge** - Visual indicators for env-configured servers
 
 ### 🗄️ Data Management
 - **SQLite Database** - Lightweight, file-based storage
@@ -96,8 +98,10 @@
 - **Health Checks** - Built-in container health monitoring
 
 ### 🔧 Configuration
-- **Flexible Setup** - Configure one or both servers
-- **Environment Variables** - Simple configuration
+- **Flexible Setup** - Configure servers via environment variables or UI
+- **Dual Configuration Methods** - Environment variables (Docker) or web UI
+- **Settings Management** - Add, edit, and delete servers through web interface
+- **Environment Variable Display** - View env-configured servers in UI (read-only)
 - **Adjustable Polling** - Customize activity check frequency
 - **Production Mode** - Optimized for production deployment
 

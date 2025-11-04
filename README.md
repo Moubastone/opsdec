@@ -195,12 +195,26 @@ This will start:
 
 ## Multi-Server Configuration
 
-OpsDec can monitor multiple media servers simultaneously. You can configure:
+OpsDec can monitor multiple media servers simultaneously using two methods:
 
-- **Plex only** - Set `PLEX_URL` and `PLEX_TOKEN`, leave others blank
-- **Emby only** - Set `EMBY_URL` and `EMBY_API_KEY`, leave others blank
-- **Audiobookshelf only** - Set `AUDIOBOOKSHELF_URL` and `AUDIOBOOKSHELF_TOKEN`, leave others blank
-- **Any combination** - Configure whichever servers you want to monitor
+### Environment Variables (Recommended for Docker)
+Configure servers via environment variables in your `.env` file or `docker-compose.yml`:
+
+- **Plex** - Set `PLEX_URL` and `PLEX_TOKEN`
+- **Emby** - Set `EMBY_URL` and `EMBY_API_KEY`
+- **Audiobookshelf** - Set `AUDIOBOOKSHELF_URL` and `AUDIOBOOKSHELF_TOKEN`
+
+Environment variable servers will appear in the Settings UI as read-only with a special badge.
+
+### UI Configuration
+Add and manage servers directly through the Settings page:
+
+1. Navigate to **Settings** in the web interface
+2. Click **Add Server**
+3. Fill in server details (type, name, URL, API key/token)
+4. Click **Save Server**
+
+**Note:** You can use both methods simultaneously. Environment variable servers and UI-configured servers will both appear in the Settings page. Environment variable servers are marked with an "Environment Variable" badge and cannot be edited or deleted through the UI.
 
 Activity from all configured servers will be aggregated in a single dashboard.
 
