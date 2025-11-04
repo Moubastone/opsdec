@@ -80,9 +80,12 @@ function Layout({ children }) {
       <header className="bg-dark-850 border-b border-dark-700 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-1">
           <div className="flex items-center justify-between">
-            <Link to="/" className="flex items-center space-x-1.5 hover:opacity-80 transition-opacity">
-              <Radio className="w-4 h-4 text-primary-500" />
-              <h1 className="text-sm font-bold text-white">OpsDec</h1>
+            <Link to="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
+              <img src="/logo-icon.svg" alt="OpsDec" className="w-6 h-6" />
+              <h1 className="text-sm font-bold">
+                <span className="text-white">Ops</span>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">Dec</span>
+              </h1>
             </Link>
 
             {/* Server Health Status */}
