@@ -5,14 +5,14 @@ import { Users, PlayCircle, TrendingUp, Clock, Activity as ActivityIcon, Film, T
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 function Dashboard() {
-  const getServerIcon = (serverType) => {
+  const getServerIcon = (serverType, size = 'w-5 h-5') => {
     switch (serverType) {
       case 'emby':
-        return <img src="/logos/emby.svg" alt="Emby" className="w-5 h-5" title="Emby" />;
+        return <img src="/logos/emby.svg" alt="Emby" className={size} title="Emby" />;
       case 'plex':
-        return <img src="/logos/plex.svg" alt="Plex" className="w-5 h-5" title="Plex" />;
+        return <img src="/logos/plex.svg" alt="Plex" className={size} title="Plex" />;
       case 'audiobookshelf':
-        return <img src="/logos/audiobookshelf.svg" alt="Audiobookshelf" className="w-5 h-5" title="Audiobookshelf" />;
+        return <img src="/logos/audiobookshelf.svg" alt="Audiobookshelf" className={size} title="Audiobookshelf" />;
       default:
         return null;
     }
@@ -86,7 +86,7 @@ function Dashboard() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-white">
-              Currently Watching ({activity.length})
+              Currently Streaming ({activity.length})
             </h3>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -115,7 +115,8 @@ function Dashboard() {
                       </div>
                     </div>
                     {/* Server label */}
-                    <div className="text-center text-xs font-semibold capitalize">
+                    <div className="flex items-center justify-center gap-1 text-xs font-semibold capitalize">
+                      {getServerIcon(session.server_type, 'w-3.5 h-3.5')}
                       <span className={
                         session.server_type === 'emby' ? 'text-green-400' :
                         session.server_type === 'plex' ? 'text-yellow-400' :
@@ -156,10 +157,10 @@ function Dashboard() {
                         }`}
                       >
                         {session.state === 'playing'
-                          ? (session.server_type === 'audiobookshelf' ? '▶ Listening' : '▶ Playing')
+                          ? (session.server_type === 'audiobookshelf' ? 'Listening' : 'Playing')
                           : session.state === 'paused'
-                          ? '⏸ Paused'
-                          : '⏹ Stopped'}
+                          ? 'Paused'
+                          : 'Stopped'}
                       </span>
                     </div>
 
