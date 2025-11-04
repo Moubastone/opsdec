@@ -575,48 +575,6 @@ function Dashboard() {
               </div>
             </div>
           )}
-
-          {/* Statistics Card */}
-          <div className="card min-w-fit">
-            <div className="card-header">
-              <h3 className="card-title text-center">Statistics</h3>
-            </div>
-            <div className="card-body px-3 py-2">
-              <div className="space-y-2">
-                <div className="text-xs">
-                  <div className="flex justify-between py-1">
-                    <div className="text-gray-400">Total Plays</div>
-                    <div className="font-bold text-white">{stats.totalPlays.toLocaleString()}</div>
-                  </div>
-                  <div className="flex justify-between py-1">
-                    <div className="text-gray-400">Monthly Avg</div>
-                    <div className="font-bold text-white">{stats.monthlyAverage}</div>
-                  </div>
-                  <div className="flex justify-between py-1">
-                    <div className="text-gray-400">Weekly Avg</div>
-                    <div className="font-bold text-white">{stats.weeklyAverage}</div>
-                  </div>
-                  <div className="flex justify-between py-1">
-                    <div className="text-gray-400">Daily Avg</div>
-                    <div className="font-bold text-white">{stats.dailyAverage}</div>
-                  </div>
-                  <div className="border-t border-dark-600 my-2"></div>
-                  <div className="flex justify-between py-1">
-                    <div className="text-gray-400">Monthly Users</div>
-                    <div className="font-bold text-white">{stats.activeMonthlyUsers}</div>
-                  </div>
-                  <div className="flex justify-between py-1">
-                    <div className="text-gray-400">Peak Day</div>
-                    <div className="font-bold text-white">{stats.peakDay}</div>
-                  </div>
-                  <div className="flex justify-between py-1">
-                    <div className="text-gray-400">Peak Hour</div>
-                    <div className="font-bold text-white">{stats.peakHour}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       )}
     </div>

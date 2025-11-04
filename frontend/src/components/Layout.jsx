@@ -122,7 +122,57 @@ function Layout({ children }) {
               </button>
 
               {isDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-dark-800 border border-dark-700 rounded-lg shadow-xl z-50">
+                <div className="absolute right-0 mt-2 w-72 bg-dark-800 border border-dark-700 rounded-lg shadow-xl z-50">
+                  {/* Statistics Section */}
+                  {stats && (
+                    <div className="px-4 py-3 border-b border-dark-700">
+                      <div className="text-xs text-gray-400 mb-3 font-semibold">Statistics</div>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                        <div>
+                          <div className="text-gray-400">Active Sessions</div>
+                          <div className="text-white font-semibold">{stats.activeSessions || 0}</div>
+                        </div>
+                        <div>
+                          <div className="text-gray-400">Total Plays</div>
+                          <div className="text-white font-semibold">{stats.totalPlays?.toLocaleString() || 0}</div>
+                        </div>
+                        <div>
+                          <div className="text-gray-400">Total Users</div>
+                          <div className="text-white font-semibold">{stats.totalUsers || 0}</div>
+                        </div>
+                        <div>
+                          <div className="text-gray-400">Watch Time</div>
+                          <div className="text-white font-semibold">{formatDuration(stats.totalDuration || 0)}</div>
+                        </div>
+                        <div>
+                          <div className="text-gray-400">Monthly Avg</div>
+                          <div className="text-white font-semibold">{stats.monthlyAverage || 0} plays</div>
+                        </div>
+                        <div>
+                          <div className="text-gray-400">Weekly Avg</div>
+                          <div className="text-white font-semibold">{stats.weeklyAverage || 0} plays</div>
+                        </div>
+                        <div>
+                          <div className="text-gray-400">Daily Avg</div>
+                          <div className="text-white font-semibold">{stats.dailyAverage || 0} plays</div>
+                        </div>
+                        <div>
+                          <div className="text-gray-400">Peak Day</div>
+                          <div className="text-white font-semibold">{stats.peakDay || 'N/A'}</div>
+                        </div>
+                        <div>
+                          <div className="text-gray-400">Peak Hour</div>
+                          <div className="text-white font-semibold">{stats.peakHour || 'N/A'}</div>
+                        </div>
+                        <div>
+                          <div className="text-gray-400">Monthly Active</div>
+                          <div className="text-white font-semibold">{stats.activeMonthlyUsers || 0} users</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Navigation Links */}
                   <div className="py-2">
                     {navItems.map((item) => {
                       const Icon = item.icon;

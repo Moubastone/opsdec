@@ -261,7 +261,12 @@ function History() {
 
             {/* Type Filter */}
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Type</label>
+              <label className="block text-sm text-gray-400 mb-1">
+                Type
+                <span className="ml-2 text-gray-500">
+                  ({filteredHistory.length} of {allHistory.length})
+                </span>
+              </label>
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
@@ -292,16 +297,13 @@ function History() {
 
           {/* Clear Filters Button */}
           {hasActiveFilters && (
-            <div className="flex justify-between items-center">
+            <div className="flex justify-start items-center">
               <button
                 onClick={clearFilters}
                 className="text-sm text-primary-500 hover:text-primary-400"
               >
                 Clear all filters
               </button>
-              <div className="text-sm text-gray-400">
-                Showing {filteredHistory.length} of {allHistory.length} total plays
-              </div>
             </div>
           )}
         </div>
