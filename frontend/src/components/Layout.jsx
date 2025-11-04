@@ -123,9 +123,29 @@ function Layout({ children }) {
 
               {isDropdownOpen && (
                 <div className="absolute right-0 mt-2 w-72 bg-dark-800 border border-dark-700 rounded-lg shadow-xl z-50">
+                  {/* Navigation Links */}
+                  <div className="py-2">
+                    {navItems.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <Link
+                          key={item.path}
+                          to={item.path}
+                          onClick={() => setIsDropdownOpen(false)}
+                          className={`flex items-center space-x-3 px-4 py-2.5 hover:bg-dark-700 transition-colors ${
+                            isActive(item.path) ? 'bg-primary-500/10 text-primary-400' : 'text-gray-300'
+                          }`}
+                        >
+                          <Icon className="w-4 h-4" />
+                          <span>{item.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+
                   {/* Statistics Section */}
                   {stats && (
-                    <div className="px-4 py-3 border-b border-dark-700">
+                    <div className="px-4 py-3 border-t border-dark-700">
                       <div className="text-xs text-gray-400 mb-3 font-semibold">Statistics</div>
                       <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
                         <div>
@@ -171,26 +191,6 @@ function Layout({ children }) {
                       </div>
                     </div>
                   )}
-
-                  {/* Navigation Links */}
-                  <div className="py-2">
-                    {navItems.map((item) => {
-                      const Icon = item.icon;
-                      return (
-                        <Link
-                          key={item.path}
-                          to={item.path}
-                          onClick={() => setIsDropdownOpen(false)}
-                          className={`flex items-center space-x-3 px-4 py-2.5 hover:bg-dark-700 transition-colors ${
-                            isActive(item.path) ? 'bg-primary-500/10 text-primary-400' : 'text-gray-300'
-                          }`}
-                        >
-                          <Icon className="w-4 h-4" />
-                          <span>{item.label}</span>
-                        </Link>
-                      );
-                    })}
-                  </div>
                 </div>
               )}
             </div>
