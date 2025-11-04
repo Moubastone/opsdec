@@ -138,17 +138,22 @@ export default function Settings() {
     setTestResults(prev => ({ ...prev, [id]: null }));
 
     try {
+      console.log(`Testing server: ${id}`);
+      console.log(`Request URL: /api/servers/${id}/test`);
       const response = await api.post(`/servers/${id}/test`);
+      console.log(`Test response:`, response);
       setTestResults(prev => ({
         ...prev,
         [id]: {
           success: response.data.data.success,
           message: response.data.data.success
-            ? `Connected to ${response.data.data.serverName || 'server'}`
-            : `Failed: ${response.data.data.error}`
+            ? response.data.data.message || `Connected to ${response.data.data.serverName || 'server'}`
+            : response.data.data.error || 'Connection failed'
         }
       }));
     } catch (error) {
+      console.error(`Test error for ${id}:`, error);
+      console.error(`Error response:`, error.response);
       setTestResults(prev => ({
         ...prev,
         [id]: {
@@ -356,20 +361,15 @@ export default function Settings() {
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3 mb-3 flex-wrap">
+                          {/* LED status indicator */}
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2.5 h-2.5 rounded-full ${server.enabled === 1 ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-gray-500'}`} />
+                          </div>
                           <h4 className="text-lg font-semibold text-white">{server.name}</h4>
                           <span className={`px-3 py-1 text-sm font-medium rounded-full flex items-center gap-2 ${typeInfo.color}`}>
                             {getServerIcon(server.type)}
                             {typeInfo.name}
                           </span>
-                          {server.enabled === 1 ? (
-                            <span className="px-3 py-1 text-sm font-medium rounded-full bg-green-500/20 text-green-400">
-                              Enabled
-                            </span>
-                          ) : (
-                            <span className="px-3 py-1 text-sm font-medium rounded-full bg-gray-500/20 text-gray-400">
-                              Disabled
-                            </span>
-                          )}
                           {server.from_env && (
                             <span className="px-3 py-1 text-sm font-medium rounded-full bg-blue-500/20 text-blue-400 flex items-center gap-1">
                               <AlertCircle className="w-3.5 h-3.5" />

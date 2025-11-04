@@ -32,16 +32,25 @@ class AudiobookshelfService {
 
   async testConnection() {
     try {
-      const response = await this.client.get('/api/status');
+      // Try to get play sessions - this is what we use for monitoring, so if this works, the server is accessible
+      const response = await this.client.get('/api/users?openPlaySessions=1');
+      let activeSessions = 0;
+      if (response.data.users) {
+        for (const user of response.data.users) {
+          if (user.mostRecent?.mediaPlayer) {
+            activeSessions++;
+          }
+        }
+      }
       return {
         success: true,
         serverName: 'Audiobookshelf',
-        version: response.data.serverVersion || 'Unknown',
+        message: `Connected successfully. Found ${activeSessions} active session(s).`,
       };
     } catch (error) {
       return {
         success: false,
-        error: error.message,
+        error: `Connection failed: ${error.message}`,
       };
     }
   }
