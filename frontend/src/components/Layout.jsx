@@ -60,11 +60,11 @@ function Layout({ children }) {
   const getServerIcon = (serverType) => {
     switch (serverType) {
       case 'emby':
-        return <Film className="w-3 h-3" />;
+        return <img src="/logos/emby.svg" alt="Emby" className="w-3 h-3" />;
       case 'plex':
-        return <Tv className="w-3 h-3" />;
+        return <img src="/logos/plex.svg" alt="Plex" className="w-3 h-3" />;
       case 'audiobookshelf':
-        return <Headphones className="w-3 h-3" />;
+        return <img src="/logos/audiobookshelf.svg" alt="Audiobookshelf" className="w-3 h-3" />;
       default:
         return null;
     }

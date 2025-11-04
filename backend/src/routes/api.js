@@ -306,7 +306,7 @@ router.get('/stats/dashboard', (req, res) => {
 
     // Most watched media - split by type (based on unique users)
     const mostWatchedMovies = db.prepare(`
-      SELECT title, parent_title, media_type, thumb, COUNT(DISTINCT user_id) as plays
+      SELECT title, parent_title, media_type, thumb, media_id, COUNT(DISTINCT user_id) as plays
       FROM history
       WHERE media_type = 'movie'
       GROUP BY media_id
@@ -319,6 +319,7 @@ router.get('/stats/dashboard', (req, res) => {
         grandparent_title as title,
         media_type,
         thumb,
+        grandparent_title as media_id,
         COUNT(DISTINCT user_id) as plays
       FROM history
       WHERE media_type = 'episode' AND grandparent_title IS NOT NULL
@@ -328,13 +329,30 @@ router.get('/stats/dashboard', (req, res) => {
     `).all();
 
     const mostWatchedAudiobooks = db.prepare(`
-      SELECT title, parent_title, media_type, thumb, COUNT(DISTINCT user_id) as plays
+      SELECT title, parent_title, media_type, thumb, media_id, COUNT(DISTINCT user_id) as plays
       FROM history
       WHERE media_type IN ('audiobook', 'track', 'book')
       GROUP BY media_id
       ORDER BY plays DESC
       LIMIT 10
     `).all();
+
+    // Add users list to each item
+    const addUsers = (items) => {
+      return items.map(item => {
+        const users = db.prepare(`
+          SELECT DISTINCT username,
+          (SELECT thumb FROM users WHERE username = h.username AND thumb IS NOT NULL LIMIT 1) as thumb
+          FROM history h
+          WHERE media_id = ? OR grandparent_title = ?
+        `).all(item.media_id, item.title);
+        return { ...item, users };
+      });
+    };
+
+    const mostWatchedMoviesWithUsers = addUsers(mostWatchedMovies);
+    const mostWatchedEpisodesWithUsers = addUsers(mostWatchedEpisodes);
+    const mostWatchedAudiobooksWithUsers = addUsers(mostWatchedAudiobooks);
 
     res.json({
       success: true,
@@ -352,9 +370,9 @@ router.get('/stats/dashboard', (req, res) => {
         playsByDay,
         topWatchers,
         topListeners,
-        mostWatchedMovies,
-        mostWatchedEpisodes,
-        mostWatchedAudiobooks,
+        mostWatchedMovies: mostWatchedMoviesWithUsers,
+        mostWatchedEpisodes: mostWatchedEpisodesWithUsers,
+        mostWatchedAudiobooks: mostWatchedAudiobooksWithUsers,
       },
     });
   } catch (error) {

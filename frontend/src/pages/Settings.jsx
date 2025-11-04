@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Save, Trash2, RefreshCw, Check, X, Server, AlertCircle } from 'lucide-react';
+import { Plus, Save, Trash2, RefreshCw, Check, X, Server, AlertCircle, Film, Tv, Headphones } from 'lucide-react';
 import api from '../utils/api';
 
 export default function Settings() {
@@ -180,6 +180,19 @@ export default function Settings() {
     return labels[type] || { name: type, color: 'bg-gray-500/20 text-gray-400' };
   };
 
+  const getServerIcon = (type) => {
+    switch (type) {
+      case 'emby':
+        return <img src="/logos/emby.svg" alt="Emby" className="w-5 h-5" />;
+      case 'plex':
+        return <img src="/logos/plex.svg" alt="Plex" className="w-5 h-5" />;
+      case 'audiobookshelf':
+        return <img src="/logos/audiobookshelf.svg" alt="Audiobookshelf" className="w-5 h-5" />;
+      default:
+        return <Server className="w-5 h-5" />;
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -344,7 +357,8 @@ export default function Settings() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3 mb-3 flex-wrap">
                           <h4 className="text-lg font-semibold text-white">{server.name}</h4>
-                          <span className={`px-3 py-1 text-sm font-medium rounded-full ${typeInfo.color}`}>
+                          <span className={`px-3 py-1 text-sm font-medium rounded-full flex items-center gap-2 ${typeInfo.color}`}>
+                            {getServerIcon(server.type)}
                             {typeInfo.name}
                           </span>
                           {server.enabled === 1 ? (

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getUsers } from '../utils/api';
 import { formatTimeAgo, formatDuration } from '../utils/format';
-import { Users as UsersIcon, Search, ChevronRight, ChevronDown, Film, Tv, Headphones } from 'lucide-react';
+import { Users as UsersIcon, Search, ChevronRight, ChevronDown, Film, Tv, Headphones, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
 function Users() {
   const [users, setUsers] = useState([]);
@@ -47,14 +47,20 @@ function Users() {
       let aVal = a[sortBy];
       let bVal = b[sortBy];
 
-      // Handle null values
-      if (aVal === null || aVal === undefined) aVal = 0;
-      if (bVal === null || bVal === undefined) bVal = 0;
+      // Handle username (string) sorting
+      if (sortBy === 'username') {
+        aVal = (aVal || '').toLowerCase();
+        bVal = (bVal || '').toLowerCase();
+      } else {
+        // Handle null values for numeric fields
+        if (aVal === null || aVal === undefined) aVal = 0;
+        if (bVal === null || bVal === undefined) bVal = 0;
+      }
 
       if (sortOrder === 'asc') {
-        return aVal > bVal ? 1 : -1;
+        return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
       } else {
-        return aVal < bVal ? 1 : -1;
+        return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
       }
     });
 
@@ -93,13 +99,13 @@ function Users() {
     }
   };
 
-  const SortIcon = ({ column }) => {
-    if (sortBy !== column) return null;
-    return (
-      <span className="ml-1">
-        {sortOrder === 'asc' ? '↑' : '↓'}
-      </span>
-    );
+  const getSortIcon = (field) => {
+    if (sortBy !== field) {
+      return <ArrowUpDown className="w-4 h-4 text-gray-500" />;
+    }
+    return sortOrder === 'asc'
+      ? <ArrowUp className="w-4 h-4 text-primary-500" />
+      : <ArrowDown className="w-4 h-4 text-primary-500" />;
   };
 
   if (loading) {
@@ -150,29 +156,41 @@ function Users() {
                 <tr>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300 w-8">
                   </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">
-                    User
+                  <th
+                    className="px-6 py-4 text-left text-sm font-semibold text-gray-300 cursor-pointer hover:bg-dark-600 transition-colors"
+                    onClick={() => handleSort('username')}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>User</span>
+                      {getSortIcon('username')}
+                    </div>
                   </th>
                   <th
-                    className="px-6 py-4 text-left text-sm font-semibold text-gray-300 cursor-pointer hover:text-white transition-colors"
+                    className="px-6 py-4 text-left text-sm font-semibold text-gray-300 cursor-pointer hover:bg-dark-600 transition-colors"
                     onClick={() => handleSort('watch_duration')}
                   >
-                    Watch Time
-                    <SortIcon column="watch_duration" />
+                    <div className="flex items-center gap-2">
+                      <span>Watch Time</span>
+                      {getSortIcon('watch_duration')}
+                    </div>
                   </th>
                   <th
-                    className="px-6 py-4 text-left text-sm font-semibold text-gray-300 cursor-pointer hover:text-white transition-colors"
+                    className="px-6 py-4 text-left text-sm font-semibold text-gray-300 cursor-pointer hover:bg-dark-600 transition-colors"
                     onClick={() => handleSort('listen_duration')}
                   >
-                    Listen Time
-                    <SortIcon column="listen_duration" />
+                    <div className="flex items-center gap-2">
+                      <span>Listen Time</span>
+                      {getSortIcon('listen_duration')}
+                    </div>
                   </th>
                   <th
-                    className="px-6 py-4 text-left text-sm font-semibold text-gray-300 cursor-pointer hover:text-white transition-colors"
+                    className="px-6 py-4 text-left text-sm font-semibold text-gray-300 cursor-pointer hover:bg-dark-600 transition-colors"
                     onClick={() => handleSort('last_seen')}
                   >
-                    Last Seen
-                    <SortIcon column="last_seen" />
+                    <div className="flex items-center gap-2">
+                      <span>Last Seen</span>
+                      {getSortIcon('last_seen')}
+                    </div>
                   </th>
                   <th className="px-6 py-4 text-right text-sm font-semibold text-gray-300">
                   </th>

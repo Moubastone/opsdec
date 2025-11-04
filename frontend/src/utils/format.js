@@ -31,7 +31,7 @@ export const formatTimeAgo = (timestamp) => {
 export const formatMediaType = (type) => {
   const types = {
     movie: 'Movie',
-    episode: 'TV Episode',
+    episode: 'Episode',
     track: 'Music',
     audiobook: 'Audiobook',
   };
