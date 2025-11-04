@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { getHistory, deleteHistoryItem } from '../utils/api';
 import { formatTimestamp, formatMediaType, formatDuration } from '../utils/format';
 import { History as HistoryIcon, PlayCircle, Search, Filter, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
+import { useTimezone } from '../contexts/TimezoneContext';
 
 const getServerIcon = (serverType) => {
   switch (serverType) {
@@ -17,6 +18,7 @@ const getServerIcon = (serverType) => {
 };
 
 function History() {
+  const { timezone } = useTimezone(); // This will cause re-render when timezone changes
   const [allHistory, setAllHistory] = useState([]);
   const [filteredHistory, setFilteredHistory] = useState([]);
   const [pagination, setPagination] = useState({ limit: 50, offset: 0, total: 0 });
