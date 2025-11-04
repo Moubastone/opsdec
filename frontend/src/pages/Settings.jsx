@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Save, Trash2, RefreshCw, Check, X, Server, AlertCircle, Film, Tv, Headphones, Globe } from 'lucide-react';
 import api, { getSettings, updateSetting } from '../utils/api';
+import { setTimezone } from '../utils/format';
 
 export default function Settings() {
   const [servers, setServers] = useState([]);
@@ -237,6 +238,8 @@ export default function Settings() {
     try {
       await updateSetting('timezone', timezone);
       setSettings({ ...settings, timezone });
+      // Update the format utility to use the new timezone
+      setTimezone(timezone);
     } catch (error) {
       console.error('Failed to update timezone:', error);
       alert(`Failed to update timezone: ${error.response?.data?.error || error.message}`);

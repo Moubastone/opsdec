@@ -1,4 +1,14 @@
 import { formatDistanceToNow, format } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
+
+// Timezone state - will be set by the app
+let currentTimezone = 'UTC';
+
+export const setTimezone = (timezone) => {
+  currentTimezone = timezone || 'UTC';
+};
+
+export const getTimezone = () => currentTimezone;
 
 export const formatDuration = (seconds) => {
   if (!seconds) return 'N/A';
@@ -16,10 +26,11 @@ export const formatDuration = (seconds) => {
   }
 };
 
-export const formatTimestamp = (timestamp) => {
+export const formatTimestamp = (timestamp, timezone = null) => {
   if (!timestamp) return 'N/A';
   const date = new Date(timestamp * 1000);
-  return format(date, 'MMM d, yyyy h:mm a');
+  const tz = timezone || currentTimezone;
+  return formatInTimeZone(date, tz, 'MMM d, yyyy h:mm a');
 };
 
 export const formatTimeAgo = (timestamp) => {
