@@ -155,6 +155,9 @@ class PlexService {
         audioCodec: audioStream?.codec || transcodeSession.audioCodec || null,
         container: media.container || null,
         resolution: videoStream ? `${videoStream.width}x${videoStream.height}` : null,
+        // Location info
+        ipAddress: player.address || null,
+        location: session.Session?.location || null, // 'lan' or 'wan'
       };
     } catch (error) {
       console.error('Error parsing Plex session:', error);

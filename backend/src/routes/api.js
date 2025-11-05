@@ -386,6 +386,16 @@ router.get('/stats/dashboard', (req, res) => {
     const mostWatchedEpisodesWithUsers = addUsers(mostWatchedEpisodes);
     const mostWatchedAudiobooksWithUsers = addUsers(mostWatchedAudiobooks);
 
+    // Top streaming locations
+    const topLocations = db.prepare(`
+      SELECT city, region, country, COUNT(*) as streams
+      FROM history
+      WHERE city IS NOT NULL AND city != 'Unknown'
+      GROUP BY city, region, country
+      ORDER BY streams DESC
+      LIMIT 10
+    `).all();
+
     res.json({
       success: true,
       data: {
@@ -405,6 +415,7 @@ router.get('/stats/dashboard', (req, res) => {
         mostWatchedMovies: mostWatchedMoviesWithUsers,
         mostWatchedEpisodes: mostWatchedEpisodesWithUsers,
         mostWatchedAudiobooks: mostWatchedAudiobooksWithUsers,
+        topLocations,
       },
     });
   } catch (error) {

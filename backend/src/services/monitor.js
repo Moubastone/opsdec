@@ -4,6 +4,7 @@ import PlexService from './plex.js';
 import AudiobookshelfService from './audiobookshelf.js';
 import db from '../database/init.js';
 import { broadcast } from '../index.js';
+import geolocation from './geolocation.js';
 
 let embyService = null;
 let plexService = null;
@@ -171,8 +172,28 @@ function migrateEnvToDatabase() {
   }
 }
 
-function updateSession(activity, serverType) {
+async function updateSession(activity, serverType) {
   const now = Math.floor(Date.now() / 1000);
+
+  // Lookup geolocation for IP address if available
+  let geoData = null;
+  if (activity.ipAddress) {
+    try {
+      geoData = await geolocation.lookup(activity.ipAddress);
+      activity.city = geoData.city;
+      activity.region = geoData.region;
+      activity.country = geoData.country;
+    } catch (error) {
+      console.error('Error looking up geolocation:', error.message);
+      activity.city = null;
+      activity.region = null;
+      activity.country = null;
+    }
+  } else {
+    activity.city = null;
+    activity.region = null;
+    activity.country = null;
+  }
 
   // Check if session exists
   const existing = db.prepare('SELECT * FROM sessions WHERE session_key = ?').get(activity.sessionKey);
@@ -197,8 +218,9 @@ function updateSession(activity, serverType) {
             INSERT INTO history (
               session_id, server_type, user_id, username,
               media_type, media_id, title, parent_title, grandparent_title,
-              watched_at, duration, percent_complete, thumb, stream_duration
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              watched_at, duration, percent_complete, thumb, stream_duration,
+              ip_address, city, region, country
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `).run(
             oldSessionId,
             existing.server_type,
@@ -213,7 +235,11 @@ function updateSession(activity, serverType) {
             existing.duration,
             existing.progress_percent,
             existing.thumb,
-            streamDuration
+            streamDuration,
+            existing.ip_address,
+            existing.city,
+            existing.region,
+            existing.country
           );
 
           db.prepare(`
@@ -254,6 +280,11 @@ function updateSession(activity, serverType) {
             container = ?,
             resolution = ?,
             user_thumb = ?,
+            ip_address = ?,
+            location = ?,
+            city = ?,
+            region = ?,
+            country = ?,
             updated_at = ?
         WHERE session_key = ?
       `).run(
@@ -279,6 +310,11 @@ function updateSession(activity, serverType) {
         activity.container || null,
         activity.resolution || null,
         activity.userThumb || null,
+        activity.ipAddress || null,
+        activity.location || null,
+        activity.city || null,
+        activity.region || null,
+        activity.country || null,
         now,
         activity.sessionKey
       );
@@ -326,8 +362,9 @@ function updateSession(activity, serverType) {
         media_type, media_id, title, parent_title, grandparent_title,
         season_number, episode_number,
         year, thumb, art, started_at, state, progress_percent, duration,
-        current_time, bitrate, transcoding, video_codec, audio_codec, container, resolution
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        current_time, bitrate, transcoding, video_codec, audio_codec, container, resolution,
+        ip_address, location, city, region, country
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       activity.sessionKey,
       serverType,
@@ -355,7 +392,12 @@ function updateSession(activity, serverType) {
       activity.videoCodec || null,
       activity.audioCodec || null,
       activity.container || null,
-      activity.resolution || null
+      activity.resolution || null,
+      activity.ipAddress || null,
+      activity.location || null,
+      activity.city || null,
+      activity.region || null,
+      activity.country || null
     );
 
     console.log(`📺 New session started: ${activity.username} watching ${activity.title} (${serverType})`);
@@ -427,8 +469,9 @@ function stopInactiveSessions(activeSessionKeys) {
               INSERT INTO history (
                 session_id, server_type, user_id, username,
                 media_type, media_id, title, parent_title, grandparent_title,
-                watched_at, duration, percent_complete, thumb, stream_duration
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                watched_at, duration, percent_complete, thumb, stream_duration,
+                ip_address, city, region, country
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).run(
               sessionData.id,
               sessionData.server_type,
@@ -443,7 +486,11 @@ function stopInactiveSessions(activeSessionKeys) {
               sessionData.duration,
               session.progress_percent,
               sessionData.thumb,
-              streamDuration
+              streamDuration,
+              sessionData.ip_address,
+              sessionData.city,
+              sessionData.region,
+              sessionData.country
             );
 
             // Update user play count
@@ -478,7 +525,7 @@ async function checkActivity(services) {
         // Update or create sessions for active streams
         for (const activity of activeStreams) {
           activeSessionKeys.add(activity.sessionKey);
-          updateSession(activity, type);
+          await updateSession(activity, type);
         }
       } catch (error) {
         console.error(`Error checking ${name} activity:`, error.message);

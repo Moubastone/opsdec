@@ -117,6 +117,10 @@ function History() {
           aVal = a.watched_at || 0;
           bVal = b.watched_at || 0;
           break;
+        case 'location':
+          aVal = a.city?.toLowerCase() || a.ip_address || '';
+          bVal = b.city?.toLowerCase() || b.ip_address || '';
+          break;
         default:
           return 0;
       }
@@ -178,6 +182,17 @@ function History() {
       setSortField(field);
       setSortDirection('asc');
     }
+  };
+
+  const formatLocation = (item) => {
+    if (item.city === 'Local Network') {
+      return 'Local Network';
+    } else if (item.city) {
+      return `${item.city}${item.region ? `, ${item.region}` : ''}`;
+    } else if (item.ip_address) {
+      return item.ip_address;
+    }
+    return '-';
   };
 
   const getSortIcon = (field) => {
@@ -397,6 +412,15 @@ function History() {
                     </th>
                     <th
                       className="px-6 py-4 text-left text-sm font-semibold text-gray-300 cursor-pointer hover:bg-dark-600 transition-colors"
+                      onClick={() => handleSort('location')}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>Location</span>
+                        {getSortIcon('location')}
+                      </div>
+                    </th>
+                    <th
+                      className="px-6 py-4 text-left text-sm font-semibold text-gray-300 cursor-pointer hover:bg-dark-600 transition-colors"
                       onClick={() => handleSort('watched_at')}
                     >
                       <div className="flex items-center gap-2">
@@ -475,6 +499,9 @@ function History() {
                         <span className="text-gray-400 text-sm">
                           {item.stream_duration ? formatDuration(item.stream_duration) : '-'}
                         </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-gray-400 text-sm">{formatLocation(item)}</span>
                       </td>
                       <td className="px-6 py-4">
                         <span className="text-gray-400 text-sm">{formatTimestamp(item.watched_at)}</span>

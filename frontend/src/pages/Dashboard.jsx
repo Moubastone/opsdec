@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getDashboardStats, getActivity } from '../utils/api';
 import { formatDuration, formatTimeAgo } from '../utils/format';
-import { Users, PlayCircle, TrendingUp, Clock, Activity as ActivityIcon, Film, Tv, Headphones, ChevronDown } from 'lucide-react';
+import { Users, PlayCircle, TrendingUp, Clock, Activity as ActivityIcon, Film, Tv, Headphones, ChevronDown, MapPin } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 function Dashboard() {
@@ -184,6 +184,19 @@ function Dashboard() {
                       <span className="capitalize">{session.media_type}</span>
                     </div>
 
+                    {/* Location info */}
+                    {(session.city || session.ip_address) && (
+                      <div className="text-xs text-gray-500 mb-3">
+                        {session.city === 'Local Network' ? (
+                          <span>Local Network</span>
+                        ) : session.city ? (
+                          <span>{session.city}{session.region ? `, ${session.region}` : ''}{session.country ? `, ${session.country}` : ''}</span>
+                        ) : session.ip_address ? (
+                          <span>{session.ip_address}</span>
+                        ) : null}
+                      </div>
+                    )}
+
                     {/* Progress bar */}
                     <div className="mb-3">
                       <div className="flex justify-between text-xs text-gray-400 mb-1">
@@ -247,7 +260,7 @@ function Dashboard() {
       )}
 
       {/* Top Users and Popular - Grid layout */}
-      {(stats.topWatchers?.length > 0 || stats.topListeners?.length > 0 || stats.mostWatchedMovies?.length > 0 || stats.mostWatchedEpisodes?.length > 0 || stats.mostWatchedAudiobooks?.length > 0) && (
+      {(stats.topWatchers?.length > 0 || stats.topListeners?.length > 0 || stats.mostWatchedMovies?.length > 0 || stats.mostWatchedEpisodes?.length > 0 || stats.mostWatchedAudiobooks?.length > 0 || stats.topLocations?.length > 0) && (
         <div className="flex flex-wrap gap-3">
           {/* Top Watchers */}
           {stats.topWatchers?.length > 0 && (
@@ -571,6 +584,40 @@ function Dashboard() {
                       </div>
                     );
                   })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Top Locations */}
+          {stats.topLocations?.length > 0 && (
+            <div className="card min-w-fit">
+              <div className="card-header">
+                <h3 className="card-title text-center">Top Locations</h3>
+              </div>
+              <div className="card-body p-0">
+                <div className="divide-y divide-dark-600">
+                  {stats.topLocations.slice(0, 10).map((location, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center gap-2 px-3 py-1.5 hover:bg-dark-700 transition-colors"
+                    >
+                      <div className="flex-shrink-0 w-4 text-center text-gray-500 text-xs">
+                        {index + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-white text-xs truncate">
+                          {location.city === 'Local Network'
+                            ? 'Local Network'
+                            : `${location.city}${location.region ? `, ${location.region}` : ''}`
+                          }
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {location.streams} {location.streams === 1 ? 'stream' : 'streams'}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

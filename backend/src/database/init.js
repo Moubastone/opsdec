@@ -130,6 +130,20 @@ export function initDatabase() {
     )
   `);
 
+  // IP geolocation cache - avoid repeated API lookups
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS ip_cache (
+      ip_address TEXT PRIMARY KEY,
+      city TEXT,
+      region TEXT,
+      country TEXT,
+      country_code TEXT,
+      timezone TEXT,
+      isp TEXT,
+      lookup_at INTEGER DEFAULT (strftime('%s', 'now'))
+    )
+  `);
+
   // Create indexes for better query performance
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
@@ -212,6 +226,57 @@ export function initDatabase() {
     if (!historyColumnNames.includes('stream_duration')) {
       console.log('🔧 Adding stream_duration column to history...');
       db.exec('ALTER TABLE history ADD COLUMN stream_duration INTEGER'); // in seconds
+    }
+
+    if (!historyColumnNames.includes('ip_address')) {
+      console.log('🔧 Adding ip_address column to history...');
+      db.exec('ALTER TABLE history ADD COLUMN ip_address TEXT');
+    }
+
+    if (!historyColumnNames.includes('location')) {
+      console.log('🔧 Adding location column to history...');
+      db.exec('ALTER TABLE history ADD COLUMN location TEXT'); // 'lan' or 'wan'
+    }
+
+    if (!historyColumnNames.includes('city')) {
+      console.log('🔧 Adding city column to history...');
+      db.exec('ALTER TABLE history ADD COLUMN city TEXT');
+    }
+
+    if (!historyColumnNames.includes('region')) {
+      console.log('🔧 Adding region column to history...');
+      db.exec('ALTER TABLE history ADD COLUMN region TEXT'); // state/province
+    }
+
+    if (!historyColumnNames.includes('country')) {
+      console.log('🔧 Adding country column to history...');
+      db.exec('ALTER TABLE history ADD COLUMN country TEXT');
+    }
+
+    // Add location fields to sessions table
+    if (!columnNames.includes('ip_address')) {
+      console.log('🔧 Adding ip_address column to sessions...');
+      db.exec('ALTER TABLE sessions ADD COLUMN ip_address TEXT');
+    }
+
+    if (!columnNames.includes('location')) {
+      console.log('🔧 Adding location column to sessions...');
+      db.exec('ALTER TABLE sessions ADD COLUMN location TEXT'); // 'lan' or 'wan'
+    }
+
+    if (!columnNames.includes('city')) {
+      console.log('🔧 Adding city column to sessions...');
+      db.exec('ALTER TABLE sessions ADD COLUMN city TEXT');
+    }
+
+    if (!columnNames.includes('region')) {
+      console.log('🔧 Adding region column to sessions...');
+      db.exec('ALTER TABLE sessions ADD COLUMN region TEXT'); // state/province
+    }
+
+    if (!columnNames.includes('country')) {
+      console.log('🔧 Adding country column to sessions...');
+      db.exec('ALTER TABLE sessions ADD COLUMN country TEXT');
     }
   } catch (error) {
     console.error('Migration error:', error.message);

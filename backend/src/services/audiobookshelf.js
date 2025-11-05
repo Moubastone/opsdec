@@ -319,6 +319,9 @@ class AudiobookshelfService {
         container: container,
         resolution: null,
         audioChannels: channels,
+        // Location info
+        ipAddress: session.deviceInfo?.ipAddress || null,
+        location: null, // Audiobookshelf doesn't provide local/remote distinction
       };
     } catch (error) {
       console.error('Error parsing Audiobookshelf playback session:', error.message);

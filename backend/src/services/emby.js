@@ -160,6 +160,9 @@ class EmbyService {
       audioCodec: audioStream?.Codec || transcodeInfo.AudioCodec || null,
       container: item.Container || null,
       resolution: videoStream ? `${videoStream.Width}x${videoStream.Height}` : null,
+      // Location info
+      ipAddress: session.RemoteEndPoint || null,
+      location: session.IsLocal === false ? 'wan' : 'lan',
     };
   }
 
