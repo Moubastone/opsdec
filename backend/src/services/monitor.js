@@ -11,21 +11,61 @@ let audiobookshelfService = null;
 let lastActiveSessions = new Map();
 let cronJob = null;
 
+// Helper function to get history filter settings
+function getHistorySettings() {
+  try {
+    const minDuration = db.prepare('SELECT value FROM settings WHERE key = ?').get('history_min_duration');
+    const minPercent = db.prepare('SELECT value FROM settings WHERE key = ?').get('history_min_percent');
+    const exclusionPatterns = db.prepare('SELECT value FROM settings WHERE key = ?').get('history_exclusion_patterns');
+    const groupSuccessive = db.prepare('SELECT value FROM settings WHERE key = ?').get('history_group_successive');
+
+    return {
+      minDuration: minDuration ? parseInt(minDuration.value) : 30,
+      minPercent: minPercent ? parseInt(minPercent.value) : 10,
+      exclusionPatterns: exclusionPatterns ? exclusionPatterns.value.split(',').map(p => p.trim().toLowerCase()) : ['theme'],
+      groupSuccessive: groupSuccessive ? parseInt(groupSuccessive.value) === 1 : true
+    };
+  } catch (error) {
+    console.error('Error loading history settings:', error.message);
+    return {
+      minDuration: 30,
+      minPercent: 10,
+      exclusionPatterns: ['theme'],
+      groupSuccessive: true
+    };
+  }
+}
+
 // Helper function to determine if a session should be added to history
-function shouldAddToHistory(title, duration, progressPercent) {
-  // Filter out theme songs/intros
-  if (title && title.toLowerCase() === 'theme') {
-    console.log(`   Skipped history: Theme/Intro excluded`);
-    return false;
+function shouldAddToHistory(title, duration, progressPercent, userId) {
+  const settings = getHistorySettings();
+
+  // Check if user has history enabled
+  try {
+    const user = db.prepare('SELECT history_enabled FROM users WHERE id = ?').get(userId);
+    if (user && user.history_enabled === 0) {
+      console.log(`   Skipped history: User has history disabled`);
+      return false;
+    }
+  } catch (error) {
+    console.error('Error checking user history setting:', error.message);
   }
 
-  // Require at least 30 seconds of playback OR 10% progress
-  const minDuration = 30; // seconds
-  const minPercent = 10; // percent
+  // Filter out excluded patterns (theme, preview, trailer, etc.)
+  if (title) {
+    const titleLower = title.toLowerCase();
+    for (const pattern of settings.exclusionPatterns) {
+      if (titleLower.includes(pattern)) {
+        console.log(`   Skipped history: Title matches exclusion pattern "${pattern}"`);
+        return false;
+      }
+    }
+  }
 
+  // Check minimum duration/progress thresholds
   const actualWatchTime = duration && progressPercent ? (duration * progressPercent / 100) : 0;
 
-  if (progressPercent < minPercent && actualWatchTime < minDuration) {
+  if (progressPercent < settings.minPercent && actualWatchTime < settings.minDuration) {
     console.log(`   Skipped history: Not watched enough (${progressPercent}%, ${Math.floor(actualWatchTime)}s)`);
     return false;
   }
@@ -148,7 +188,7 @@ function updateSession(activity, serverType) {
       const oldSessionId = existing.id;
 
       // Add old session to history if it meets criteria
-      if (shouldAddToHistory(existing.title, existing.duration, existing.progress_percent)) {
+      if (shouldAddToHistory(existing.title, existing.duration, existing.progress_percent, existing.user_id)) {
         try {
           db.prepare(`
             INSERT INTO history (
@@ -365,7 +405,7 @@ function stopInactiveSessions(activeSessionKeys) {
       console.log(`⏹️  Session stopped: ${session.username} - ${session.title} (${session.progress_percent}% / ${session.duration}s)`);
 
       // Add to history if it meets criteria
-      if (shouldAddToHistory(session.title, session.duration, session.progress_percent)) {
+      if (shouldAddToHistory(session.title, session.duration, session.progress_percent, session.user_id)) {
         try {
           const sessionData = db.prepare('SELECT * FROM sessions WHERE session_key = ?').get(session.session_key);
 

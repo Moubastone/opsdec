@@ -85,6 +85,7 @@ export function initDatabase() {
       email TEXT,
       thumb TEXT,
       is_admin INTEGER DEFAULT 0,
+      history_enabled INTEGER DEFAULT 1, -- toggle history tracking per user
       last_seen INTEGER,
       total_plays INTEGER DEFAULT 0,
       total_duration INTEGER DEFAULT 0, -- in seconds
@@ -194,8 +195,38 @@ export function initDatabase() {
       console.log('🔧 Adding user_thumb column...');
       db.exec('ALTER TABLE sessions ADD COLUMN user_thumb TEXT');
     }
+
+    // Add history_enabled column to users table if it doesn't exist
+    const userColumns = db.prepare('PRAGMA table_info(users)').all();
+    const userColumnNames = userColumns.map(col => col.name);
+
+    if (!userColumnNames.includes('history_enabled')) {
+      console.log('🔧 Adding history_enabled column to users...');
+      db.exec('ALTER TABLE users ADD COLUMN history_enabled INTEGER DEFAULT 1');
+    }
   } catch (error) {
     console.error('Migration error:', error.message);
+  }
+
+  // Initialize default history filter settings if they don't exist
+  try {
+    const settingsKeys = ['history_min_duration', 'history_min_percent', 'history_exclusion_patterns', 'history_group_successive'];
+    const defaults = {
+      history_min_duration: '30',
+      history_min_percent: '10',
+      history_exclusion_patterns: 'theme,preview,trailer',
+      history_group_successive: '1'
+    };
+
+    for (const key of settingsKeys) {
+      const existing = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
+      if (!existing) {
+        db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run(key, defaults[key]);
+        console.log(`🔧 Initialized default setting: ${key} = ${defaults[key]}`);
+      }
+    }
+  } catch (error) {
+    console.error('Settings initialization error:', error.message);
   }
 
   console.log('✅ Database initialized successfully');

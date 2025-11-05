@@ -203,6 +203,32 @@ router.get('/users/:userId/stats', (req, res) => {
   }
 });
 
+// Toggle user history tracking
+router.put('/users/:userId/history-enabled', (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { enabled } = req.body;
+
+    if (enabled === undefined) {
+      return res.status(400).json({ success: false, error: 'enabled field is required' });
+    }
+
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    db.prepare('UPDATE users SET history_enabled = ? WHERE id = ?').run(enabled ? 1 : 0, userId);
+
+    res.json({
+      success: true,
+      message: `History tracking ${enabled ? 'enabled' : 'disabled'} for ${user.username}`
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Get dashboard stats
 router.get('/stats/dashboard', (req, res) => {
   try {
