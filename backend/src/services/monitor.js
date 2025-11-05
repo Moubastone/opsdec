@@ -221,7 +221,7 @@ function updateSession(activity, serverType) {
             SET total_plays = total_plays + 1,
                 total_duration = total_duration + ?
             WHERE id = ?
-          `).run(Math.floor(existing.duration * existing.progress_percent / 100), existing.user_id);
+          `).run(streamDuration, existing.user_id);
 
           console.log(`📝 Added to history: ${existing.title} (${existing.progress_percent}%)`);
         } catch (error) {
@@ -452,7 +452,7 @@ function stopInactiveSessions(activeSessionKeys) {
               SET total_plays = total_plays + 1,
                   total_duration = total_duration + ?
               WHERE id = ?
-            `).run(Math.floor(sessionData.duration * session.progress_percent / 100), session.user_id);
+            `).run(streamDuration, session.user_id);
 
             console.log(`📝 Added to history: ${session.title} (${session.progress_percent}%)`);
           } else {
