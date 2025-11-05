@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Plus, Save, Trash2, RefreshCw, Check, X, Server, AlertCircle, Film, Tv, Headphones, Globe } from 'lucide-react';
-import api, { getSettings, updateSetting } from '../utils/api';
+import { Plus, Save, Trash2, RefreshCw, Check, X, Server, AlertCircle, Film, Tv, Headphones, Globe, Users as UsersIcon, Database, Download, Upload, Archive } from 'lucide-react';
+import api, { getSettings, updateSetting, getUserMappings, createUserMapping, deleteUserMapping, getUsersByServer, purgeDatabase, createBackup, getBackups, restoreBackup, deleteBackup } from '../utils/api';
 import { useTimezone } from '../contexts/TimezoneContext';
 
 export default function Settings() {
@@ -15,6 +15,28 @@ export default function Settings() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [settings, setSettings] = useState({ timezone: 'UTC' });
   const [savingSettings, setSavingSettings] = useState(false);
+  const [purgingDatabase, setPurgingDatabase] = useState(false);
+
+  // Backup/restore state
+  const [backups, setBackups] = useState([]);
+  const [loadingBackups, setLoadingBackups] = useState(false);
+  const [creatingBackup, setCreatingBackup] = useState(false);
+  const [restoringBackup, setRestoringBackup] = useState(null);
+
+  // User mappings state
+  const [userMappings, setUserMappings] = useState([]);
+  const [usersByServer, setUsersByServer] = useState({ plex: [], emby: [], audiobookshelf: [] });
+  const [showMappingForm, setShowMappingForm] = useState(false);
+  const [mappingFormData, setMappingFormData] = useState({
+    primary_username: '',
+    mappings: {
+      plex: '',
+      emby: '',
+      audiobookshelf: ''
+    },
+    preferred_avatar_server: 'plex' // Which server's avatar to use
+  });
+  const [savingMapping, setSavingMapping] = useState(false);
 
   const [formData, setFormData] = useState({
     type: 'emby',
@@ -27,6 +49,9 @@ export default function Settings() {
   useEffect(() => {
     loadServers();
     loadSettings();
+    loadUserMappings();
+    loadUsersByServer();
+    loadBackups();
   }, []);
 
   const loadSettings = async () => {
@@ -35,6 +60,36 @@ export default function Settings() {
       setSettings(response.data.data);
     } catch (error) {
       console.error('Failed to load settings:', error);
+    }
+  };
+
+  const loadUserMappings = async () => {
+    try {
+      const response = await getUserMappings();
+      setUserMappings(response.data.data || []);
+    } catch (error) {
+      console.error('Failed to load user mappings:', error);
+    }
+  };
+
+  const loadUsersByServer = async () => {
+    try {
+      const response = await getUsersByServer();
+      setUsersByServer(response.data.data || { plex: [], emby: [], audiobookshelf: [] });
+    } catch (error) {
+      console.error('Failed to load users by server:', error);
+    }
+  };
+
+  const loadBackups = async () => {
+    setLoadingBackups(true);
+    try {
+      const response = await getBackups();
+      setBackups(response.data.backups || []);
+    } catch (error) {
+      console.error('Failed to load backups:', error);
+    } finally {
+      setLoadingBackups(false);
     }
   };
 
@@ -246,6 +301,153 @@ export default function Settings() {
       alert(`Failed to update timezone: ${error.response?.data?.error || error.message}`);
     } finally {
       setSavingSettings(false);
+    }
+  };
+
+  const handlePurgeDatabase = async () => {
+    if (!confirm('⚠️ WARNING: This will delete ALL user data, history, and statistics!\n\nA backup will be created first, but this action cannot be easily undone.\n\nServer settings and timezone will be preserved.\n\nAre you absolutely sure you want to continue?')) {
+      return;
+    }
+
+    // Second confirmation
+    if (!confirm('This is your final warning. All user data will be permanently deleted. Continue?')) {
+      return;
+    }
+
+    setPurgingDatabase(true);
+    try {
+      const response = await purgeDatabase();
+      alert(`Database purged successfully!\n\nBackup created at: ${response.data.backupPath}\n\nThe page will now reload.`);
+      // Reload the page to reflect the empty state
+      window.location.reload();
+    } catch (error) {
+      console.error('Failed to purge database:', error);
+      alert(`Failed to purge database: ${error.response?.data?.error || error.message}`);
+    } finally {
+      setPurgingDatabase(false);
+    }
+  };
+
+  const handleCreateBackup = async () => {
+    setCreatingBackup(true);
+    try {
+      const response = await createBackup();
+      alert(`Backup created successfully!\n\nFilename: ${response.data.backup.filename}\nSize: ${(response.data.backup.size / 1024 / 1024).toFixed(2)} MB`);
+      loadBackups();
+    } catch (error) {
+      console.error('Failed to create backup:', error);
+      alert(`Failed to create backup: ${error.response?.data?.error || error.message}`);
+    } finally {
+      setCreatingBackup(false);
+    }
+  };
+
+  const handleRestoreBackup = async (filename) => {
+    if (!confirm(`⚠️ WARNING: This will restore the database from backup "${filename}".\n\nA safety backup of the current database will be created first.\n\nThis action will replace all current data with the backup data.\n\nAre you sure you want to continue?`)) {
+      return;
+    }
+
+    setRestoringBackup(filename);
+    try {
+      const response = await restoreBackup(filename);
+      alert(`Database restored successfully!\n\nSafety backup created at: ${response.data.safetyBackup}\n\nThe page will now reload.`);
+      window.location.reload();
+    } catch (error) {
+      console.error('Failed to restore backup:', error);
+      alert(`Failed to restore backup: ${error.response?.data?.error || error.message}`);
+    } finally {
+      setRestoringBackup(null);
+    }
+  };
+
+  const handleDeleteBackup = async (filename) => {
+    if (!confirm(`Are you sure you want to delete the backup "${filename}"?\n\nThis action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await deleteBackup(filename);
+      alert('Backup deleted successfully!');
+      loadBackups();
+    } catch (error) {
+      console.error('Failed to delete backup:', error);
+      alert(`Failed to delete backup: ${error.response?.data?.error || error.message}`);
+    }
+  };
+
+  const formatBackupDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleString();
+  };
+
+  const formatFileSize = (bytes) => {
+    return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+  };
+
+  const handleAddMapping = () => {
+    setShowMappingForm(true);
+    setMappingFormData({
+      primary_username: '',
+      mappings: {
+        plex: '',
+        emby: '',
+        audiobookshelf: ''
+      },
+      preferred_avatar_server: 'plex'
+    });
+  };
+
+  const handleEditMapping = (mapping) => {
+    setShowMappingForm(true);
+    setMappingFormData({
+      primary_username: mapping.primary_username,
+      mappings: {
+        plex: mapping.mappings.plex || '',
+        emby: mapping.mappings.emby || '',
+        audiobookshelf: mapping.mappings.audiobookshelf || ''
+      },
+      preferred_avatar_server: mapping.preferred_avatar_server || 'plex'
+    });
+  };
+
+  const handleCancelMapping = () => {
+    setShowMappingForm(false);
+    setMappingFormData({
+      primary_username: '',
+      mappings: {
+        plex: '',
+        emby: '',
+        audiobookshelf: ''
+      },
+      preferred_avatar_server: 'plex'
+    });
+  };
+
+  const handleSubmitMapping = async (e) => {
+    e.preventDefault();
+    setSavingMapping(true);
+
+    try {
+      await createUserMapping(mappingFormData);
+      await loadUserMappings();
+      handleCancelMapping();
+    } catch (error) {
+      console.error('Failed to save mapping:', error);
+      alert(`Failed to save mapping: ${error.response?.data?.error || error.message}`);
+    } finally {
+      setSavingMapping(false);
+    }
+  };
+
+  const handleDeleteMapping = async (primaryUsername) => {
+    if (!confirm('Are you sure you want to delete this user mapping?')) return;
+
+    try {
+      await deleteUserMapping(primaryUsername);
+      await loadUserMappings();
+    } catch (error) {
+      console.error('Failed to delete mapping:', error);
+      alert(`Failed to delete mapping: ${error.response?.data?.error || error.message}`);
     }
   };
 
@@ -524,6 +726,317 @@ export default function Settings() {
         </div>
       )}
 
+      {/* User Mappings Section */}
+      <div className="bg-dark-800 rounded-lg p-6 border border-dark-700 mt-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-100 mb-2">User Mappings</h2>
+            <p className="text-sm text-gray-400">Create a primary user and select which username from each server maps to it</p>
+          </div>
+          <button
+            onClick={handleAddMapping}
+            className="px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Add User
+          </button>
+        </div>
+
+        {/* Add/Edit Mapping Form */}
+        {showMappingForm && (
+          <div className="bg-dark-750 border border-dark-600 rounded-lg p-6 mb-6">
+            <h3 className="text-lg font-semibold text-white mb-4">
+              {mappingFormData.primary_username && userMappings.some(m => m.primary_username === mappingFormData.primary_username) ? 'Edit User Mapping' : 'Add New User Mapping'}
+            </h3>
+            <form onSubmit={handleSubmitMapping}>
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Primary Username
+                </label>
+                <input
+                  type="text"
+                  value={mappingFormData.primary_username}
+                  onChange={(e) => setMappingFormData({ ...mappingFormData, primary_username: e.target.value })}
+                  className="w-full px-4 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  placeholder="Primary display name"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">This is the username that will be displayed in all statistics</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                {/* Plex */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
+                    {getServerIcon('plex')}
+                    Plex Username
+                  </label>
+                  <select
+                    value={mappingFormData.mappings.plex}
+                    onChange={(e) => setMappingFormData({
+                      ...mappingFormData,
+                      mappings: { ...mappingFormData.mappings, plex: e.target.value }
+                    })}
+                    className="w-full px-4 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  >
+                    <option value="">None</option>
+                    {usersByServer.plex?.map(user => (
+                      <option key={user.username} value={user.username}>{user.username}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Emby */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
+                    {getServerIcon('emby')}
+                    Emby Username
+                  </label>
+                  <select
+                    value={mappingFormData.mappings.emby}
+                    onChange={(e) => setMappingFormData({
+                      ...mappingFormData,
+                      mappings: { ...mappingFormData.mappings, emby: e.target.value }
+                    })}
+                    className="w-full px-4 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  >
+                    <option value="">None</option>
+                    {usersByServer.emby?.map(user => (
+                      <option key={user.username} value={user.username}>{user.username}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Audiobookshelf */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
+                    {getServerIcon('audiobookshelf')}
+                    Audiobookshelf Username
+                  </label>
+                  <select
+                    value={mappingFormData.mappings.audiobookshelf}
+                    onChange={(e) => setMappingFormData({
+                      ...mappingFormData,
+                      mappings: { ...mappingFormData.mappings, audiobookshelf: e.target.value }
+                    })}
+                    className="w-full px-4 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  >
+                    <option value="">None</option>
+                    {usersByServer.audiobookshelf?.map(user => (
+                      <option key={user.username} value={user.username}>{user.username}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Avatar Selection */}
+              <div className="mb-6 p-4 bg-dark-700/50 border border-dark-600 rounded-lg">
+                <label className="block text-sm font-medium text-gray-300 mb-3">
+                  Preferred Avatar
+                </label>
+                <p className="text-xs text-gray-500 mb-3">Choose which server's avatar to display for this user</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {/* Plex Avatar Option */}
+                  <label className="flex items-center gap-3 p-3 bg-dark-700 border border-dark-600 rounded-lg cursor-pointer hover:border-primary-500 transition-colors">
+                    <input
+                      type="radio"
+                      name="preferred_avatar"
+                      value="plex"
+                      checked={mappingFormData.preferred_avatar_server === 'plex'}
+                      onChange={(e) => setMappingFormData({
+                        ...mappingFormData,
+                        preferred_avatar_server: e.target.value
+                      })}
+                      className="w-4 h-4 text-primary-600 focus:ring-primary-500 focus:ring-2"
+                      disabled={!mappingFormData.mappings.plex}
+                    />
+                    <div className="flex items-center gap-2">
+                      {getServerIcon('plex')}
+                      <span className={`text-sm ${mappingFormData.mappings.plex ? 'text-gray-200' : 'text-gray-500'}`}>
+                        Plex
+                      </span>
+                    </div>
+                  </label>
+
+                  {/* Emby Avatar Option */}
+                  <label className="flex items-center gap-3 p-3 bg-dark-700 border border-dark-600 rounded-lg cursor-pointer hover:border-primary-500 transition-colors">
+                    <input
+                      type="radio"
+                      name="preferred_avatar"
+                      value="emby"
+                      checked={mappingFormData.preferred_avatar_server === 'emby'}
+                      onChange={(e) => setMappingFormData({
+                        ...mappingFormData,
+                        preferred_avatar_server: e.target.value
+                      })}
+                      className="w-4 h-4 text-primary-600 focus:ring-primary-500 focus:ring-2"
+                      disabled={!mappingFormData.mappings.emby}
+                    />
+                    <div className="flex items-center gap-2">
+                      {getServerIcon('emby')}
+                      <span className={`text-sm ${mappingFormData.mappings.emby ? 'text-gray-200' : 'text-gray-500'}`}>
+                        Emby
+                      </span>
+                    </div>
+                  </label>
+
+                  {/* Audiobookshelf Avatar Option */}
+                  <label className="flex items-center gap-3 p-3 bg-dark-700 border border-dark-600 rounded-lg cursor-pointer hover:border-primary-500 transition-colors">
+                    <input
+                      type="radio"
+                      name="preferred_avatar"
+                      value="audiobookshelf"
+                      checked={mappingFormData.preferred_avatar_server === 'audiobookshelf'}
+                      onChange={(e) => setMappingFormData({
+                        ...mappingFormData,
+                        preferred_avatar_server: e.target.value
+                      })}
+                      className="w-4 h-4 text-primary-600 focus:ring-primary-500 focus:ring-2"
+                      disabled={!mappingFormData.mappings.audiobookshelf}
+                    />
+                    <div className="flex items-center gap-2">
+                      {getServerIcon('audiobookshelf')}
+                      <span className={`text-sm ${mappingFormData.mappings.audiobookshelf ? 'text-gray-200' : 'text-gray-500'}`}>
+                        Audiobookshelf
+                      </span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="submit"
+                  disabled={savingMapping}
+                  className="px-4 py-2 bg-primary-600 hover:bg-primary-500 disabled:bg-primary-700 disabled:opacity-50 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                >
+                  <Save className="w-4 h-4" />
+                  {savingMapping ? 'Saving...' : 'Save Mapping'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelMapping}
+                  className="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-lg font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Mappings List */}
+        {userMappings.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-dark-700 rounded-full mb-4">
+              <UsersIcon className="w-8 h-8 text-gray-500" />
+            </div>
+            <p className="text-gray-400 text-lg mb-2">No user mappings configured</p>
+            <p className="text-gray-500">Add a user mapping to consolidate usernames from different servers</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {userMappings.map((mapping, index) => {
+              // Get avatar from preferred server first, then fall back to any available
+              let avatarUrl = null;
+              const preferredServer = mapping.preferred_avatar_server || 'plex';
+
+              // Try preferred server first
+              if (mapping.mappings[preferredServer]) {
+                const user = usersByServer[preferredServer]?.find(u => u.username === mapping.mappings[preferredServer]);
+                if (user?.thumb) {
+                  avatarUrl = user.thumb;
+                }
+              }
+
+              // If no avatar from preferred server, try others
+              if (!avatarUrl) {
+                for (const serverType of ['plex', 'emby', 'audiobookshelf']) {
+                  if (serverType !== preferredServer && mapping.mappings[serverType]) {
+                    const user = usersByServer[serverType]?.find(u => u.username === mapping.mappings[serverType]);
+                    if (user?.thumb) {
+                      avatarUrl = user.thumb;
+                      break;
+                    }
+                  }
+                }
+              }
+
+              return (
+                <div key={index} className="bg-dark-750 border border-dark-600 rounded-lg p-4 hover:border-dark-500 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4 flex-1">
+                      {/* Avatar */}
+                      {avatarUrl ? (
+                        <img
+                          src={`/proxy/image?url=${encodeURIComponent(avatarUrl)}`}
+                          alt={mapping.primary_username}
+                          className="w-12 h-12 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-primary-600 flex items-center justify-center">
+                          <span className="text-white font-semibold text-lg">
+                            {mapping.primary_username.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* User info */}
+                      <div className="flex-1">
+                        <h4 className="text-white font-semibold mb-2">{mapping.primary_username}</h4>
+                        <div className="flex flex-wrap gap-3">
+                          {/* Plex */}
+                          {mapping.mappings.plex && (
+                            <div className="flex items-center gap-2 px-2 py-1 bg-dark-700 rounded text-xs">
+                              {getServerIcon('plex')}
+                              <span className="text-gray-300">{mapping.mappings.plex}</span>
+                            </div>
+                          )}
+                          {/* Emby */}
+                          {mapping.mappings.emby && (
+                            <div className="flex items-center gap-2 px-2 py-1 bg-dark-700 rounded text-xs">
+                              {getServerIcon('emby')}
+                              <span className="text-gray-300">{mapping.mappings.emby}</span>
+                            </div>
+                          )}
+                          {/* Audiobookshelf */}
+                          {mapping.mappings.audiobookshelf && (
+                            <div className="flex items-center gap-2 px-2 py-1 bg-dark-700 rounded text-xs">
+                              {getServerIcon('audiobookshelf')}
+                              <span className="text-gray-300">{mapping.mappings.audiobookshelf}</span>
+                            </div>
+                          )}
+                          {!mapping.mappings.plex && !mapping.mappings.emby && !mapping.mappings.audiobookshelf && (
+                            <span className="text-gray-500 text-sm">No server mappings</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-2 ml-4">
+                      <button
+                        onClick={() => handleEditMapping(mapping)}
+                        className="px-3 py-1.5 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-lg font-medium transition-colors text-sm"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteMapping(mapping.primary_username)}
+                        className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg font-medium transition-colors inline-flex items-center gap-1 text-sm"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Application Settings */}
       <div className="bg-dark-800 rounded-lg p-6 border border-dark-700 mt-6">
         <h2 className="text-xl font-semibold text-gray-100 mb-6">Application Settings</h2>
@@ -611,6 +1124,120 @@ export default function Settings() {
             {savingSettings && (
               <p className="mt-2 text-sm text-gray-400">Saving...</p>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* Database Management */}
+      <div className="bg-dark-800 rounded-lg p-6 mt-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Archive className="w-5 h-5 text-primary-500" />
+            <h2 className="text-xl font-semibold text-gray-100">Database Management</h2>
+          </div>
+          <button
+            onClick={handleCreateBackup}
+            disabled={creatingBackup}
+            className="px-4 py-2 bg-primary-600 hover:bg-primary-500 disabled:bg-primary-700 disabled:opacity-50 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+          >
+            <Download className="w-4 h-4" />
+            {creatingBackup ? 'Creating...' : 'Create Backup'}
+          </button>
+        </div>
+
+        <p className="text-sm text-gray-400 mb-4">
+          Manage database backups. Create manual backups or restore from existing backup files.
+        </p>
+
+        {loadingBackups ? (
+          <div className="text-center py-8 text-gray-400">Loading backups...</div>
+        ) : backups.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            No backups available. Create a backup to get started.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {backups.map((backup) => (
+              <div
+                key={backup.filename}
+                className="bg-dark-750 border border-dark-700 rounded-lg p-4 flex items-center justify-between"
+              >
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Database className="w-4 h-4 text-primary-400" />
+                    <span className="font-medium text-gray-200">{backup.filename}</span>
+                  </div>
+                  <div className="text-xs text-gray-500 space-x-4">
+                    <span>Created: {formatBackupDate(backup.created)}</span>
+                    <span>Size: {formatFileSize(backup.size)}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleRestoreBackup(backup.filename)}
+                    disabled={restoringBackup === backup.filename}
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-700 disabled:opacity-50 text-white rounded text-sm font-medium transition-colors flex items-center gap-1"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    {restoringBackup === backup.filename ? 'Restoring...' : 'Restore'}
+                  </button>
+                  <a
+                    href={`/api/database/backups/${backup.filename}/download`}
+                    download={backup.filename}
+                    className="px-3 py-1.5 bg-primary-600 hover:bg-primary-500 text-white rounded text-sm font-medium transition-colors flex items-center gap-1"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Download
+                  </a>
+                  <button
+                    onClick={() => handleDeleteBackup(backup.filename)}
+                    disabled={restoringBackup === backup.filename}
+                    className="px-3 py-1.5 bg-dark-600 hover:bg-dark-500 disabled:opacity-50 text-gray-300 rounded text-sm font-medium transition-colors flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Danger Zone */}
+      <div className="bg-dark-800 rounded-lg p-6 border border-red-900/50 mt-6">
+        <div className="flex items-center gap-2 mb-4">
+          <AlertCircle className="w-5 h-5 text-red-500" />
+          <h2 className="text-xl font-semibold text-red-400">Danger Zone</h2>
+        </div>
+
+        <div className="space-y-4">
+          <div className="bg-dark-750/50 border border-red-900/30 rounded-lg p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-100 mb-2 flex items-center gap-2">
+                  <Database className="w-5 h-5 text-red-400" />
+                  Purge Database
+                </h3>
+                <p className="text-sm text-gray-400 mb-2">
+                  Permanently delete all user data, watch history, sessions, and statistics from the database.
+                </p>
+                <ul className="text-xs text-gray-500 space-y-1 mb-3">
+                  <li>• A backup will be created automatically before purging</li>
+                  <li>• Server settings and timezone will be preserved</li>
+                  <li>• User mappings will be removed</li>
+                  <li>• This action cannot be easily undone</li>
+                </ul>
+              </div>
+              <button
+                onClick={handlePurgeDatabase}
+                disabled={purgingDatabase}
+                className="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:bg-red-700 disabled:opacity-50 text-white rounded-lg font-medium transition-colors flex items-center gap-2 whitespace-nowrap"
+              >
+                <Database className="w-4 h-4" />
+                {purgingDatabase ? 'Purging...' : 'Purge Database'}
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -16,5 +16,14 @@ export const getEmbyLibraries = () => api.get('/emby/libraries');
 export const getServerHealth = () => api.get('/servers/health');
 export const getSettings = () => api.get('/settings');
 export const updateSetting = (key, value) => api.put(`/settings/${key}`, { value });
+export const getUsersByServer = () => api.get('/settings/users-by-server');
+export const getUserMappings = () => api.get('/settings/user-mappings');
+export const createUserMapping = (mapping) => api.post('/settings/user-mappings', mapping);
+export const deleteUserMapping = (primaryUsername) => api.delete(`/settings/user-mappings/${primaryUsername}`);
+export const purgeDatabase = () => api.post('/database/purge');
+export const createBackup = () => api.post('/database/backup');
+export const getBackups = () => api.get('/database/backups');
+export const restoreBackup = (filename) => api.post('/database/restore', { filename });
+export const deleteBackup = (filename) => api.delete(`/database/backups/${filename}`);
 
 export default api;

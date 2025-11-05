@@ -144,6 +144,18 @@ export function initDatabase() {
     )
   `);
 
+  // User mappings - map usernames from different servers to a unified username
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS user_mappings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      primary_username TEXT NOT NULL,
+      mapped_username TEXT NOT NULL,
+      server_type TEXT NOT NULL,
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
+      UNIQUE(mapped_username, server_type)
+    )
+  `);
+
   // Create indexes for better query performance
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
@@ -152,6 +164,8 @@ export function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_history_user ON history(user_id);
     CREATE INDEX IF NOT EXISTS idx_history_watched ON history(watched_at);
     CREATE INDEX IF NOT EXISTS idx_users_server ON users(server_type);
+    CREATE INDEX IF NOT EXISTS idx_user_mappings_mapped ON user_mappings(mapped_username);
+    CREATE INDEX IF NOT EXISTS idx_user_mappings_primary ON user_mappings(primary_username);
   `);
 
   // Migrations - add missing columns if they don't exist
@@ -219,6 +233,15 @@ export function initDatabase() {
       db.exec('ALTER TABLE users ADD COLUMN history_enabled INTEGER DEFAULT 1');
     }
 
+    // Add preferred_avatar_server column to user_mappings table if it doesn't exist
+    const mappingColumns = db.prepare('PRAGMA table_info(user_mappings)').all();
+    const mappingColumnNames = mappingColumns.map(col => col.name);
+
+    if (!mappingColumnNames.includes('preferred_avatar_server')) {
+      console.log('🔧 Adding preferred_avatar_server column to user_mappings...');
+      db.exec('ALTER TABLE user_mappings ADD COLUMN preferred_avatar_server TEXT DEFAULT "plex"');
+    }
+
     // Add stream_duration column to history table if it doesn't exist
     const historyColumns = db.prepare('PRAGMA table_info(history)').all();
     const historyColumnNames = historyColumns.map(col => col.name);
@@ -280,6 +303,44 @@ export function initDatabase() {
     }
   } catch (error) {
     console.error('Migration error:', error.message);
+  }
+
+  // Migrate user_mappings table to have composite unique constraint
+  try {
+    // Check if the old unique constraint exists by trying to query the schema
+    const tableInfo = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='user_mappings'").get();
+
+    if (tableInfo && tableInfo.sql.includes('mapped_username TEXT NOT NULL UNIQUE')) {
+      console.log('🔧 Migrating user_mappings table to use composite unique constraint...');
+
+      // Get existing data
+      const existingMappings = db.prepare('SELECT * FROM user_mappings').all();
+
+      // Drop and recreate the table with new schema
+      db.exec('DROP TABLE IF EXISTS user_mappings');
+      db.exec(`
+        CREATE TABLE user_mappings (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          primary_username TEXT NOT NULL,
+          mapped_username TEXT NOT NULL,
+          server_type TEXT NOT NULL,
+          created_at INTEGER DEFAULT (strftime('%s', 'now')),
+          UNIQUE(mapped_username, server_type)
+        )
+      `);
+
+      // Restore data
+      const insert = db.prepare('INSERT INTO user_mappings (id, primary_username, mapped_username, server_type, created_at) VALUES (?, ?, ?, ?, ?)');
+      for (const mapping of existingMappings) {
+        // Make sure server_type is not null
+        const serverType = mapping.server_type || 'unknown';
+        insert.run(mapping.id, mapping.primary_username, mapping.mapped_username, serverType, mapping.created_at);
+      }
+
+      console.log(`✅ Migrated ${existingMappings.length} user mappings`);
+    }
+  } catch (error) {
+    console.error('User mappings migration error:', error.message);
   }
 
   // Initialize default history filter settings if they don't exist

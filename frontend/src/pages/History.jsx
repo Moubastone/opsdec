@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getHistory, deleteHistoryItem } from '../utils/api';
 import { formatTimestamp, formatMediaType, formatDuration } from '../utils/format';
 import { History as HistoryIcon, PlayCircle, Search, Filter, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
@@ -18,6 +19,7 @@ const getServerIcon = (serverType) => {
 };
 
 function History() {
+  const navigate = useNavigate();
   const { timezone } = useTimezone(); // This will cause re-render when timezone changes
   const [allHistory, setAllHistory] = useState([]);
   const [filteredHistory, setFilteredHistory] = useState([]);
@@ -460,7 +462,13 @@ function History() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center space-x-2">
+                        <div
+                          className="flex items-center space-x-2 cursor-pointer group"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/users/${item.user_id}`);
+                          }}
+                        >
                           {item.user_thumb ? (
                             <img
                               src={`/proxy/image?url=${encodeURIComponent(item.user_thumb)}`}
@@ -473,7 +481,9 @@ function History() {
                               {item.username.charAt(0).toUpperCase()}
                             </div>
                           )}
-                          <span className="text-gray-300">{item.username}</span>
+                          <span className="text-gray-300 group-hover:text-primary-400 transition-colors">
+                            {item.username}
+                          </span>
                         </div>
                       </td>
                       <td className="px-6 py-4">

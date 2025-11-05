@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { getUsers } from '../utils/api';
 import { formatTimeAgo, formatDuration } from '../utils/format';
-import { Users as UsersIcon, Search, ChevronRight, ChevronDown, Film, Tv, Headphones, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Users as UsersIcon, Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
 function Users() {
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('last_seen');
   const [sortOrder, setSortOrder] = useState('desc');
-  const [expandedRows, setExpandedRows] = useState(new Set());
 
   useEffect(() => {
     loadUsers();
@@ -74,16 +74,6 @@ function Users() {
       setSortBy(column);
       setSortOrder('desc');
     }
-  };
-
-  const toggleRow = (userId) => {
-    const newExpanded = new Set(expandedRows);
-    if (newExpanded.has(userId)) {
-      newExpanded.delete(userId);
-    } else {
-      newExpanded.add(userId);
-    }
-    setExpandedRows(newExpanded);
   };
 
   const getServerIcon = (serverType) => {
@@ -154,8 +144,6 @@ function Users() {
             <table className="w-full">
               <thead className="bg-dark-700">
                 <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300 w-8">
-                  </th>
                   <th
                     className="px-6 py-4 text-left text-sm font-semibold text-gray-300 cursor-pointer hover:bg-dark-600 transition-colors"
                     onClick={() => handleSort('username')}
@@ -192,101 +180,62 @@ function Users() {
                       {getSortIcon('last_seen')}
                     </div>
                   </th>
-                  <th className="px-6 py-4 text-right text-sm font-semibold text-gray-300">
-                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-dark-700">
                 {filteredUsers.map((user) => (
-                  <>
-                    <tr key={user.id} className="hover:bg-dark-700/50 transition-colors">
-                      <td className="px-6 py-4">
-                        <button
-                          onClick={() => toggleRow(user.id)}
-                          className="text-gray-400 hover:text-white transition-colors"
-                        >
-                          <ChevronDown
-                            className={`w-4 h-4 transition-transform ${
-                              expandedRows.has(user.id) ? 'rotate-0' : '-rotate-90'
-                            }`}
+                  <tr
+                    key={user.id}
+                    onClick={() => navigate(`/users/${user.id}`)}
+                    className="hover:bg-dark-700/50 transition-colors cursor-pointer"
+                  >
+                    <td className="px-6 py-4">
+                      <div className="flex items-center space-x-3">
+                        {user.thumb ? (
+                          <img
+                            src={`/proxy/image?url=${encodeURIComponent(user.thumb)}`}
+                            alt={user.username}
+                            className="w-10 h-10 rounded-full object-cover"
+                            loading="lazy"
                           />
-                        </button>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center space-x-3">
-                          {user.thumb ? (
-                            <img
-                              src={`/proxy/image?url=${encodeURIComponent(user.thumb)}`}
-                              alt={user.username}
-                              className="w-10 h-10 rounded-full object-cover"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 bg-primary-600 rounded-full flex items-center justify-center text-white font-medium text-sm">
-                              {user.username.charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                          <div>
-                            <div className="flex items-center space-x-2">
-                              <span className="text-white font-medium">{user.username}</span>
-                              {user.is_admin ? (
-                                <span className="text-xs bg-primary-500/20 text-primary-400 px-2 py-0.5 rounded">
-                                  Admin
-                                </span>
-                              ) : null}
-                            </div>
+                        ) : (
+                          <div className="w-10 h-10 bg-primary-600 rounded-full flex items-center justify-center text-white font-medium text-sm">
+                            {user.username.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-white font-medium hover:text-primary-400 transition-colors">
+                              {user.username}
+                            </span>
+                            {user.is_mapped && user.server_types && user.server_types.length > 0 ? (
+                              user.server_types.map((serverType, index) => (
+                                <div key={index}>
+                                  {getServerIcon(serverType)}
+                                </div>
+                              ))
+                            ) : !user.is_mapped && user.server_type ? (
+                              getServerIcon(user.server_type)
+                            ) : null}
+                            {user.is_admin ? (
+                              <span className="text-xs bg-primary-500/20 text-primary-400 px-2 py-0.5 rounded">
+                                Admin
+                              </span>
+                            ) : null}
                           </div>
                         </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-gray-300">{formatDuration(user.watch_duration || 0)}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-gray-300">{formatDuration(user.listen_duration || 0)}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-gray-300">{formatTimeAgo(user.last_seen)}</span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <Link
-                          to={`/users/${user.id}`}
-                          className="inline-flex items-center text-primary-400 hover:text-primary-300 transition-colors"
-                        >
-                          Details
-                          <ChevronRight className="w-4 h-4 ml-1" />
-                        </Link>
-                      </td>
-                    </tr>
-                    {expandedRows.has(user.id) && user.server_stats && user.server_stats.length > 0 && (
-                      <tr key={`${user.id}-expanded`} className="bg-dark-800/50">
-                        <td colSpan="8" className="px-6 py-4">
-                          <div className="ml-14">
-                            <h4 className="text-sm font-semibold text-gray-300 mb-3">Server Breakdown</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                              {user.server_stats.map((stat) => (
-                                <div key={stat.server_type} className="bg-dark-700 rounded-lg p-4">
-                                  <div className="flex items-center space-x-2 mb-2">
-                                    {getServerIcon(stat.server_type)}
-                                    <span className="text-white font-medium capitalize">{stat.server_type}</span>
-                                  </div>
-                                  <div className="space-y-1 text-sm">
-                                    <div className="flex justify-between">
-                                      <span className="text-gray-400">Plays:</span>
-                                      <span className="text-gray-300">{stat.plays}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-gray-400">Duration:</span>
-                                      <span className="text-gray-300">{formatDuration(stat.duration)}</span>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-gray-300">{formatDuration(user.watch_duration || 0)}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-gray-300">{formatDuration(user.listen_duration || 0)}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-gray-300">{formatTimeAgo(user.last_seen)}</span>
+                    </td>
+                  </tr>
                 ))}
               </tbody>
             </table>

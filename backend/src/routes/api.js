@@ -33,7 +33,7 @@ router.get('/history', (req, res) => {
     let query = `
       SELECT
         h.*,
-        (SELECT thumb FROM users WHERE username = h.username AND thumb IS NOT NULL LIMIT 1) as user_thumb,
+        (SELECT thumb FROM users WHERE username = h.username AND server_type = h.server_type AND thumb IS NOT NULL LIMIT 1) as user_thumb,
         CAST(h.duration * h.percent_complete / 100 AS INTEGER) as session_duration
       FROM history h
       ${userId ? 'WHERE h.user_id = ?' : ''}
@@ -42,7 +42,19 @@ router.get('/history', (req, res) => {
     `;
 
     const params = userId ? [userId, limit, offset] : [limit, offset];
-    const history = db.prepare(query).all(...params);
+    const historyRaw = db.prepare(query).all(...params);
+
+    // Apply user mappings and get correct avatars
+    const history = historyRaw.map(item => {
+      const primaryUsername = applyUserMapping(item.username, item.server_type);
+      const avatarInfo = getAvatarForPrimaryUser(primaryUsername);
+      return {
+        ...item,
+        username: primaryUsername,
+        user_thumb: avatarInfo ? avatarInfo.thumb : null,
+        user_server_type: avatarInfo ? avatarInfo.server_type : item.server_type
+      };
+    });
 
     // Count all entries
     const countQuery = userId
@@ -82,29 +94,66 @@ router.delete('/history/:id', (req, res) => {
 // Get users
 router.get('/users', (req, res) => {
   try {
-    // Get unique usernames with their most recent activity and avatar
-    const uniqueUsers = db.prepare(`
+    // Get all users with their server_type
+    const allUsersRaw = db.prepare(`
       SELECT
         username,
+        server_type,
         MAX(last_seen) as last_seen,
         MAX(is_admin) as is_admin,
-        (SELECT thumb FROM users WHERE username = u.username AND thumb IS NOT NULL LIMIT 1) as thumb,
-        (SELECT id FROM users WHERE username = u.username LIMIT 1) as id
-      FROM users u
-      GROUP BY username
+        id
+      FROM users
+      GROUP BY username, server_type
       ORDER BY last_seen DESC
     `).all();
 
-    // Enhance each user with additional stats
-    const enhancedUsers = uniqueUsers.map(user => {
+    // Apply user mappings and group by primary username
+    const usersByPrimary = {};
+    allUsersRaw.forEach(user => {
+      const primaryUsername = applyUserMapping(user.username, user.server_type);
+
+      if (!usersByPrimary[primaryUsername]) {
+        usersByPrimary[primaryUsername] = {
+          username: primaryUsername,
+          last_seen: user.last_seen,
+          is_admin: user.is_admin,
+          id: user.id,
+          mapped_usernames: []
+        };
+      } else {
+        // Keep the most recent last_seen
+        if (user.last_seen > usersByPrimary[primaryUsername].last_seen) {
+          usersByPrimary[primaryUsername].last_seen = user.last_seen;
+        }
+        // Keep is_admin if any mapped user is admin
+        if (user.is_admin) {
+          usersByPrimary[primaryUsername].is_admin = user.is_admin;
+        }
+      }
+
+      // Track mapped usernames for stat queries
+      usersByPrimary[primaryUsername].mapped_usernames.push({
+        username: user.username,
+        server_type: user.server_type
+      });
+    });
+
+    // Enhance each primary user with aggregated stats
+    const enhancedUsers = Object.values(usersByPrimary).map(user => {
+      // Build WHERE clause for all mapped usernames
+      const whereConditions = user.mapped_usernames.map(() =>
+        '(username = ? AND server_type = ?)'
+      ).join(' OR ');
+      const whereParams = user.mapped_usernames.flatMap(m => [m.username, m.server_type]);
+
       // Get watch stats (video content)
       const watchStats = db.prepare(`
         SELECT
           COUNT(*) as watch_plays,
           SUM(duration) as watch_duration
         FROM history
-        WHERE username = ? AND media_type IN ('movie', 'episode')
-      `).get(user.username);
+        WHERE (${whereConditions}) AND media_type IN ('movie', 'episode')
+      `).get(...whereParams);
 
       // Get listening stats (audio content)
       const listenStats = db.prepare(`
@@ -112,8 +161,8 @@ router.get('/users', (req, res) => {
           COUNT(*) as listen_plays,
           SUM(duration) as listen_duration
         FROM history
-        WHERE username = ? AND media_type IN ('audiobook', 'track', 'book')
-      `).get(user.username);
+        WHERE (${whereConditions}) AND media_type IN ('audiobook', 'track', 'book')
+      `).get(...whereParams);
 
       // Get total stats
       const totalStats = db.prepare(`
@@ -121,8 +170,8 @@ router.get('/users', (req, res) => {
           COUNT(*) as total_plays,
           SUM(duration) as total_duration
         FROM history
-        WHERE username = ?
-      `).get(user.username);
+        WHERE (${whereConditions})
+      `).get(...whereParams);
 
       // Get server breakdown
       const serverStats = db.prepare(`
@@ -131,21 +180,35 @@ router.get('/users', (req, res) => {
           COUNT(*) as plays,
           SUM(duration) as duration
         FROM history
-        WHERE username = ?
+        WHERE (${whereConditions})
         GROUP BY server_type
-      `).all(user.username);
+      `).all(...whereParams);
+
+      // Get the correct avatar for this primary user
+      const avatarInfo = getAvatarForPrimaryUser(user.username);
 
       return {
-        ...user,
-        total_plays: totalStats.total_plays || 0,
-        total_duration: totalStats.total_duration || 0,
-        watch_plays: watchStats.watch_plays || 0,
-        watch_duration: watchStats.watch_duration || 0,
-        listen_plays: listenStats.listen_plays || 0,
-        listen_duration: listenStats.listen_duration || 0,
+        id: user.id,
+        username: user.username,
+        last_seen: user.last_seen,
+        is_admin: user.is_admin,
+        thumb: avatarInfo ? avatarInfo.thumb : null,
+        server_type: avatarInfo ? avatarInfo.server_type : null,
+        is_mapped: user.mapped_usernames.length > 1,
+        mapped_servers: user.mapped_usernames.length,
+        server_types: user.mapped_usernames.map(m => m.server_type), // Array of ALL server types from mapped accounts
+        total_plays: totalStats?.total_plays || 0,
+        total_duration: totalStats?.total_duration || 0,
+        watch_plays: watchStats?.watch_plays || 0,
+        watch_duration: watchStats?.watch_duration || 0,
+        listen_plays: listenStats?.listen_plays || 0,
+        listen_duration: listenStats?.listen_duration || 0,
         server_stats: serverStats
       };
     });
+
+    // Sort by last_seen DESC
+    enhancedUsers.sort((a, b) => b.last_seen - a.last_seen);
 
     res.json({ success: true, data: enhancedUsers });
   } catch (error) {
@@ -158,41 +221,74 @@ router.get('/users/:userId/stats', (req, res) => {
   try {
     const { userId } = req.params;
 
+    // First check if this is a user ID (numeric) or a username (string from the new /users endpoint)
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
     if (!user) {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
 
-    // Get play counts by media type
+    // Apply user mapping to get the primary username
+    const primaryUsername = applyUserMapping(user.username, user.server_type);
+
+    // Get all mapped usernames for this primary username
+    const mappedUsers = db.prepare(`
+      SELECT u.id, u.username, u.server_type
+      FROM users u
+      WHERE u.username = ?
+      UNION
+      SELECT u.id, u.username, u.server_type
+      FROM users u
+      INNER JOIN user_mappings um ON u.username = um.mapped_username AND u.server_type = um.server_type
+      WHERE um.primary_username = ?
+    `).all(primaryUsername, primaryUsername);
+
+    // Build list of user IDs to query
+    const userIds = mappedUsers.map(u => u.id);
+    const userIdsPlaceholders = userIds.map(() => '?').join(',');
+
+    // Get play counts by media type (aggregated across all mapped users)
     const mediaTypes = db.prepare(`
       SELECT media_type, COUNT(*) as count
       FROM history
-      WHERE user_id = ?
+      WHERE user_id IN (${userIdsPlaceholders})
       GROUP BY media_type
-    `).all(userId);
+    `).all(...userIds);
 
-    // Get recent watches
+    // Get recent watches (aggregated across all mapped users)
     const recentWatches = db.prepare(`
       SELECT * FROM history
-      WHERE user_id = ?
+      WHERE user_id IN (${userIdsPlaceholders})
       ORDER BY watched_at DESC
       LIMIT 10
-    `).all(userId);
+    `).all(...userIds);
 
-    // Get most watched
+    // Get most watched (aggregated across all mapped users)
     const mostWatched = db.prepare(`
-      SELECT title, parent_title, media_type, COUNT(*) as plays
+      SELECT title, parent_title, media_type, thumb, COUNT(*) as plays
       FROM history
-      WHERE user_id = ?
+      WHERE user_id IN (${userIdsPlaceholders})
       GROUP BY media_id
       ORDER BY plays DESC
       LIMIT 10
-    `).all(userId);
+    `).all(...userIds);
+
+    // Return user info with primary username
+    const avatarInfo = getAvatarForPrimaryUser(primaryUsername);
+    const userInfo = {
+      id: user.id,
+      username: primaryUsername,
+      thumb: avatarInfo ? avatarInfo.thumb : null,
+      server_type: avatarInfo ? avatarInfo.server_type : null,
+      email: user.email,
+      is_admin: user.is_admin,
+      history_enabled: user.history_enabled,
+      last_seen: user.last_seen
+    };
 
     res.json({
       success: true,
       data: {
-        user,
+        user: userInfo,
         mediaTypes,
         recentWatches,
         mostWatched,
@@ -311,30 +407,84 @@ router.get('/stats/dashboard', (req, res) => {
     const peakHour = peakHourResult ? `${parseInt(peakHourResult.hour)}:00` : 'N/A';
 
     // Top watchers (video content: movies + episodes)
-    const topWatchers = db.prepare(`
+    const topWatchersRaw = db.prepare(`
       SELECT
         h.username,
-        SUM(COALESCE(h.stream_duration, CAST(h.duration * h.percent_complete / 100 AS INTEGER))) as total_duration,
-        (SELECT thumb FROM users WHERE username = h.username AND thumb IS NOT NULL LIMIT 1) as thumb
+        h.server_type,
+        SUM(COALESCE(h.stream_duration, CAST(h.duration * h.percent_complete / 100 AS INTEGER))) as total_duration
       FROM history h
       WHERE h.media_type IN ('movie', 'episode')
-      GROUP BY h.username
-      ORDER BY total_duration DESC
-      LIMIT 10
+      GROUP BY h.username, h.server_type
     `).all();
 
+    // Apply user mappings and aggregate by primary username
+    const watchersByPrimary = {};
+    topWatchersRaw.forEach(row => {
+      const primaryUsername = applyUserMapping(row.username, row.server_type);
+      if (!watchersByPrimary[primaryUsername]) {
+        watchersByPrimary[primaryUsername] = {
+          username: primaryUsername,
+          total_duration: 0,
+          thumb: null
+        };
+      }
+      watchersByPrimary[primaryUsername].total_duration += row.total_duration;
+    });
+
+    // Convert to array and sort
+    const topWatchers = Object.values(watchersByPrimary)
+      .sort((a, b) => b.total_duration - a.total_duration)
+      .slice(0, 10)
+      .map(watcher => {
+        // Get thumb for the primary username using avatar preference
+        const avatarInfo = getAvatarForPrimaryUser(watcher.username);
+        return {
+          ...watcher,
+          user_id: getUserIdForPrimaryUsername(watcher.username),
+          thumb: avatarInfo ? avatarInfo.thumb : null,
+          server_type: avatarInfo ? avatarInfo.server_type : null
+        };
+      });
+
     // Top listeners (audio content: audiobooks + tracks + books + music)
-    const topListeners = db.prepare(`
+    const topListenersRaw = db.prepare(`
       SELECT
         h.username,
-        SUM(COALESCE(h.stream_duration, CAST(h.duration * h.percent_complete / 100 AS INTEGER))) as total_duration,
-        (SELECT thumb FROM users WHERE username = h.username AND thumb IS NOT NULL LIMIT 1) as thumb
+        h.server_type,
+        SUM(COALESCE(h.stream_duration, CAST(h.duration * h.percent_complete / 100 AS INTEGER))) as total_duration
       FROM history h
       WHERE h.media_type IN ('audiobook', 'track', 'book', 'music')
-      GROUP BY h.username
-      ORDER BY total_duration DESC
-      LIMIT 10
+      GROUP BY h.username, h.server_type
     `).all();
+
+    // Apply user mappings and aggregate by primary username
+    const listenersByPrimary = {};
+    topListenersRaw.forEach(row => {
+      const primaryUsername = applyUserMapping(row.username, row.server_type);
+      if (!listenersByPrimary[primaryUsername]) {
+        listenersByPrimary[primaryUsername] = {
+          username: primaryUsername,
+          total_duration: 0,
+          thumb: null
+        };
+      }
+      listenersByPrimary[primaryUsername].total_duration += row.total_duration;
+    });
+
+    // Convert to array and sort
+    const topListeners = Object.values(listenersByPrimary)
+      .sort((a, b) => b.total_duration - a.total_duration)
+      .slice(0, 10)
+      .map(listener => {
+        // Get thumb for the primary username using avatar preference
+        const avatarInfo = getAvatarForPrimaryUser(listener.username);
+        return {
+          ...listener,
+          user_id: getUserIdForPrimaryUsername(listener.username),
+          thumb: avatarInfo ? avatarInfo.thumb : null,
+          server_type: avatarInfo ? avatarInfo.server_type : null
+        };
+      });
 
     // Most watched media - split by type (based on unique users)
     const mostWatchedMovies = db.prepare(`
@@ -372,12 +522,36 @@ router.get('/stats/dashboard', (req, res) => {
     // Add users list to each item
     const addUsers = (items) => {
       return items.map(item => {
-        const users = db.prepare(`
-          SELECT DISTINCT username,
-          (SELECT thumb FROM users WHERE username = h.username AND thumb IS NOT NULL LIMIT 1) as thumb
+        const usersRaw = db.prepare(`
+          SELECT DISTINCT h.username, h.server_type,
+          (SELECT thumb FROM users WHERE username = h.username AND server_type = h.server_type AND thumb IS NOT NULL LIMIT 1) as thumb
           FROM history h
           WHERE media_id = ? OR grandparent_title = ?
         `).all(item.media_id, item.title);
+
+        // Apply user mappings and deduplicate by primary username
+        const usersByPrimary = {};
+        usersRaw.forEach(user => {
+          const primaryUsername = applyUserMapping(user.username, user.server_type);
+          if (!usersByPrimary[primaryUsername]) {
+            usersByPrimary[primaryUsername] = {
+              username: primaryUsername,
+              thumb: null
+            };
+          }
+        });
+
+        // Get the correct avatar for each primary user
+        const users = Object.values(usersByPrimary).map(user => {
+          const avatarInfo = getAvatarForPrimaryUser(user.username);
+          return {
+            ...user,
+            user_id: getUserIdForPrimaryUsername(user.username),
+            thumb: avatarInfo ? avatarInfo.thumb : null,
+            server_type: avatarInfo ? avatarInfo.server_type : null
+          };
+        });
+
         return { ...item, users };
       });
     };
@@ -387,22 +561,56 @@ router.get('/stats/dashboard', (req, res) => {
     const mostWatchedAudiobooksWithUsers = addUsers(mostWatchedAudiobooks);
 
     // Top streaming locations with users
-    const topLocations = db.prepare(`
+    const topLocationsRaw = db.prepare(`
       SELECT
         city,
         region,
         country,
-        COUNT(*) as streams,
-        GROUP_CONCAT(DISTINCT username) as usernames
+        COUNT(*) as streams
       FROM history
       WHERE city IS NOT NULL AND city != 'Unknown'
       GROUP BY city, region, country
       ORDER BY streams DESC
       LIMIT 10
-    `).all().map(loc => ({
-      ...loc,
-      users: loc.usernames ? loc.usernames.split(',') : []
-    }));
+    `).all();
+
+    const topLocations = topLocationsRaw.map(loc => {
+      // Get users for this location with their thumbs
+      // Handle NULL values properly for region and country
+      const locationUsersRaw = db.prepare(`
+        SELECT DISTINCT h.username, h.server_type, u.thumb
+        FROM history h
+        LEFT JOIN users u ON h.username = u.username AND h.server_type = u.server_type
+        WHERE h.city = ?
+          AND (h.region = ? OR (h.region IS NULL AND ? IS NULL))
+          AND (h.country = ? OR (h.country IS NULL AND ? IS NULL))
+      `).all(loc.city, loc.region, loc.region, loc.country, loc.country);
+
+      // Apply user mappings and deduplicate by primary username
+      const usersByPrimary = {};
+      locationUsersRaw.forEach(user => {
+        const primaryUsername = applyUserMapping(user.username, user.server_type);
+        if (!usersByPrimary[primaryUsername]) {
+          usersByPrimary[primaryUsername] = {
+            username: primaryUsername,
+            thumb: null
+          };
+        }
+      });
+
+      // Get the correct avatar for each primary user
+      Object.values(usersByPrimary).forEach(user => {
+        const avatarInfo = getAvatarForPrimaryUser(user.username);
+        user.user_id = getUserIdForPrimaryUsername(user.username);
+        user.thumb = avatarInfo ? avatarInfo.thumb : null;
+        user.server_type = avatarInfo ? avatarInfo.server_type : null;
+      });
+
+      return {
+        ...loc,
+        users: Object.values(usersByPrimary)
+      };
+    });
 
     res.json({
       success: true,
@@ -762,6 +970,258 @@ router.post('/monitoring/restart', async (req, res) => {
   }
 });
 
+// User Mappings Endpoints
+// Helper function to apply user mappings
+function applyUserMapping(username, serverType) {
+  const mapping = db.prepare('SELECT primary_username FROM user_mappings WHERE mapped_username = ? AND server_type = ?').get(username, serverType);
+  return mapping ? mapping.primary_username : username;
+}
+
+// Helper function to get user_id for a primary username
+function getUserIdForPrimaryUsername(primaryUsername) {
+  // First check if it's a mapped user - get the preferred avatar server
+  const mapping = db.prepare('SELECT preferred_avatar_server FROM user_mappings WHERE primary_username = ? LIMIT 1').get(primaryUsername);
+
+  if (mapping) {
+    // For mapped users, get the mapped username for the preferred avatar server
+    const serverMapping = db.prepare('SELECT mapped_username FROM user_mappings WHERE primary_username = ? AND server_type = ? LIMIT 1').get(primaryUsername, mapping.preferred_avatar_server);
+    if (serverMapping) {
+      const user = db.prepare('SELECT id FROM users WHERE username = ? AND server_type = ? LIMIT 1').get(serverMapping.mapped_username, mapping.preferred_avatar_server);
+      return user ? user.id : null;
+    }
+  }
+
+  // For non-mapped users, look up directly
+  const user = db.prepare('SELECT id FROM users WHERE username = ? LIMIT 1').get(primaryUsername);
+  return user ? user.id : null;
+}
+
+// Helper function to get avatar for a primary username based on user mapping preferences
+// Returns an object with { thumb, server_type } or null if no avatar found
+function getAvatarForPrimaryUser(primaryUsername) {
+  // Check if this is a mapped user (primary username exists in user_mappings)
+  const isMapped = db.prepare(`
+    SELECT COUNT(*) as count FROM user_mappings WHERE primary_username = ?
+  `).get(primaryUsername);
+
+  if (isMapped && isMapped.count > 0) {
+    // This is a mapped user - use preferred avatar server logic
+    const preferredMapping = db.prepare(`
+      SELECT preferred_avatar_server, mapped_username, server_type
+      FROM user_mappings
+      WHERE primary_username = ?
+      LIMIT 1
+    `).get(primaryUsername);
+
+    if (preferredMapping && preferredMapping.preferred_avatar_server) {
+      // Try to get the avatar from the preferred server
+      const preferredAvatar = db.prepare(`
+        SELECT thumb, server_type FROM users
+        WHERE username = (
+          SELECT mapped_username FROM user_mappings
+          WHERE primary_username = ? AND server_type = ?
+        )
+        AND server_type = ?
+        AND thumb IS NOT NULL
+        LIMIT 1
+      `).get(primaryUsername, preferredMapping.preferred_avatar_server, preferredMapping.preferred_avatar_server);
+
+      if (preferredAvatar) {
+        return { thumb: preferredAvatar.thumb, server_type: preferredAvatar.server_type };
+      }
+    }
+
+    // Fall back to any available avatar for this primary username
+    const fallbackAvatar = db.prepare(`
+      SELECT u.thumb, u.server_type FROM users u
+      INNER JOIN user_mappings um ON u.username = um.mapped_username AND u.server_type = um.server_type
+      WHERE um.primary_username = ? AND u.thumb IS NOT NULL
+      LIMIT 1
+    `).get(primaryUsername);
+
+    if (fallbackAvatar && fallbackAvatar.thumb) {
+      return { thumb: fallbackAvatar.thumb, server_type: fallbackAvatar.server_type };
+    }
+
+    // No avatar found for mapped user - return server type for icon fallback
+    const serverType = db.prepare(`
+      SELECT server_type FROM user_mappings WHERE primary_username = ? LIMIT 1
+    `).get(primaryUsername);
+    return { thumb: null, server_type: serverType ? serverType.server_type : null };
+  } else {
+    // This is an unmapped user - check if they have an avatar in users table
+    const userAvatar = db.prepare(`
+      SELECT thumb, server_type FROM users
+      WHERE username = ?
+      AND thumb IS NOT NULL
+      LIMIT 1
+    `).get(primaryUsername);
+
+    if (userAvatar && userAvatar.thumb) {
+      return { thumb: userAvatar.thumb, server_type: userAvatar.server_type };
+    }
+
+    // No avatar found - get server type for icon fallback
+    const serverType = db.prepare(`
+      SELECT server_type FROM users WHERE username = ? LIMIT 1
+    `).get(primaryUsername);
+    return { thumb: null, server_type: serverType ? serverType.server_type : null };
+  }
+}
+
+// Get all users grouped by server type
+router.get('/settings/users-by-server', (req, res) => {
+  try {
+    const users = db.prepare(`
+      SELECT DISTINCT username, server_type, thumb
+      FROM users
+      ORDER BY server_type, username
+    `).all();
+
+    const grouped = {
+      plex: [],
+      emby: [],
+      audiobookshelf: []
+    };
+
+    users.forEach(user => {
+      if (grouped[user.server_type]) {
+        grouped[user.server_type].push({
+          username: user.username,
+          thumb: user.thumb
+        });
+      }
+    });
+
+    res.json({ success: true, data: grouped });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get all user mappings grouped by primary user
+router.get('/settings/user-mappings', (req, res) => {
+  try {
+    const mappings = db.prepare('SELECT * FROM user_mappings ORDER BY primary_username, server_type').all();
+
+    // Group by primary username
+    const grouped = {};
+    mappings.forEach(mapping => {
+      if (!grouped[mapping.primary_username]) {
+        grouped[mapping.primary_username] = {
+          primary_username: mapping.primary_username,
+          mappings: {
+            plex: null,
+            emby: null,
+            audiobookshelf: null
+          },
+          preferred_avatar_server: mapping.preferred_avatar_server || 'plex'
+        };
+      }
+      if (mapping.server_type) {
+        grouped[mapping.primary_username].mappings[mapping.server_type] = mapping.mapped_username;
+        // Update preferred_avatar_server if this mapping has it set
+        if (mapping.preferred_avatar_server) {
+          grouped[mapping.primary_username].preferred_avatar_server = mapping.preferred_avatar_server;
+        }
+      }
+    });
+
+    res.json({ success: true, data: Object.values(grouped) });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Create or update user mappings (bulk operation for a primary user)
+router.post('/settings/user-mappings', (req, res) => {
+  try {
+    const { primary_username, mappings, preferred_avatar_server } = req.body;
+    // mappings should be: { plex: 'username1', emby: 'username2', audiobookshelf: null }
+
+    console.log('💾 Saving user mapping:', { primary_username, mappings, preferred_avatar_server });
+
+    if (!primary_username) {
+      return res.status(400).json({
+        success: false,
+        error: 'primary_username is required'
+      });
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+
+    // First, check for conflicts BEFORE deleting existing mappings
+    const serverTypes = ['plex', 'emby', 'audiobookshelf'];
+    for (const serverType of serverTypes) {
+      if (mappings[serverType] && mappings[serverType].trim() !== '') {
+        const mapped_username = mappings[serverType].trim();
+
+        console.log(`  Checking ${serverType}: ${mapped_username}`);
+
+        // Check if this mapped username is already used by another primary user
+        const existing = db.prepare('SELECT primary_username FROM user_mappings WHERE mapped_username = ? AND server_type = ? AND primary_username != ?')
+          .get(mapped_username, serverType, primary_username);
+
+        if (existing) {
+          console.log(`  ❌ Conflict found: ${mapped_username} already mapped to ${existing.primary_username}`);
+          return res.status(400).json({
+            success: false,
+            error: `Username "${mapped_username}" is already mapped to "${existing.primary_username}"`
+          });
+        }
+      }
+    }
+
+    console.log('  ✅ No conflicts found, proceeding with save');
+
+    // Delete existing mappings for this primary user
+    const deleted = db.prepare('DELETE FROM user_mappings WHERE primary_username = ?').run(primary_username);
+    console.log(`  Deleted ${deleted.changes} existing mappings for ${primary_username}`);
+
+    // Insert new mappings
+    for (const serverType of serverTypes) {
+      if (mappings[serverType] && mappings[serverType].trim() !== '') {
+        const mapped_username = mappings[serverType].trim();
+        const avatarServer = preferred_avatar_server || 'plex';
+
+        console.log(`  Inserting: ${primary_username} -> ${mapped_username} (${serverType}), avatar: ${avatarServer}`);
+        db.prepare(`
+          INSERT INTO user_mappings (primary_username, mapped_username, server_type, preferred_avatar_server, created_at)
+          VALUES (?, ?, ?, ?, ?)
+        `).run(primary_username, mapped_username, serverType, avatarServer, now);
+      }
+    }
+
+    console.log('  ✅ Mappings saved successfully');
+    res.json({ success: true, message: 'Mappings saved successfully' });
+  } catch (error) {
+    console.error('  ❌ Error saving mappings:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Delete all mappings for a primary user
+router.delete('/settings/user-mappings/:primaryUsername', (req, res) => {
+  try {
+    const { primaryUsername } = req.params;
+
+    db.prepare('DELETE FROM user_mappings WHERE primary_username = ?').run(primaryUsername);
+    res.json({ success: true, message: 'Mappings deleted' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Debug endpoint to see all raw mappings
+router.get('/settings/user-mappings/debug/raw', (req, res) => {
+  try {
+    const mappings = db.prepare('SELECT * FROM user_mappings ORDER BY id').all();
+    res.json({ success: true, data: mappings });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Application Settings Endpoints
 // Get all settings
 router.get('/settings', (req, res) => {
@@ -806,6 +1266,251 @@ router.put('/settings/:key', (req, res) => {
 
     res.json({ success: true, message: 'Setting updated' });
   } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Purge user data from database (keeps settings and server config)
+router.post('/database/purge', async (req, res) => {
+  try {
+    const fs = await import('fs');
+    const path = await import('path');
+    const dbPath = process.env.DATABASE_PATH || './data/opsdec.db';
+    const backupPath = path.join(path.dirname(dbPath), `opsdec_backup_${Date.now()}.db`);
+
+    console.log(`Creating database backup at ${backupPath}`);
+
+    // Create backup first
+    await fs.promises.copyFile(dbPath, backupPath);
+
+    console.log('Backup created successfully, purging user data...');
+
+    // Delete user data while preserving settings and servers
+    const tablesToPurge = ['history', 'sessions', 'users', 'user_mappings', 'library_stats', 'ip_cache'];
+
+    for (const table of tablesToPurge) {
+      const count = db.prepare(`SELECT COUNT(*) as count FROM ${table}`).get().count;
+      db.prepare(`DELETE FROM ${table}`).run();
+      console.log(`Deleted ${count} rows from ${table}`);
+    }
+
+    // Vacuum the database to reclaim space
+    db.prepare('VACUUM').run();
+
+    console.log('Database purge completed successfully');
+
+    res.json({
+      success: true,
+      message: 'User data purged successfully',
+      backupPath: backupPath
+    });
+  } catch (error) {
+    console.error('Database purge error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Create a manual backup of the database
+router.post('/database/backup', async (req, res) => {
+  try {
+    const fs = await import('fs');
+    const path = await import('path');
+    const dbPath = process.env.DATABASE_PATH || './data/opsdec.db';
+    const backupPath = path.join(path.dirname(dbPath), `opsdec_backup_${Date.now()}.db`);
+
+    console.log(`Creating database backup at ${backupPath}`);
+
+    // Create backup
+    await fs.promises.copyFile(dbPath, backupPath);
+
+    // Get backup file stats
+    const stats = await fs.promises.stat(backupPath);
+
+    console.log('Backup created successfully');
+
+    res.json({
+      success: true,
+      message: 'Database backup created successfully',
+      backup: {
+        filename: path.basename(backupPath),
+        path: backupPath,
+        size: stats.size,
+        created: stats.mtime
+      }
+    });
+  } catch (error) {
+    console.error('Database backup error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get list of available backups
+router.get('/database/backups', async (req, res) => {
+  try {
+    const fs = await import('fs');
+    const path = await import('path');
+    const dbPath = process.env.DATABASE_PATH || './data/opsdec.db';
+    const dataDir = path.dirname(dbPath);
+
+    // Read directory and filter for backup files
+    const files = await fs.promises.readdir(dataDir);
+    const backupFiles = files.filter(f => f.startsWith('opsdec_backup_') && f.endsWith('.db'));
+
+    // Get stats for each backup
+    const backups = await Promise.all(
+      backupFiles.map(async (filename) => {
+        const filePath = path.join(dataDir, filename);
+        const stats = await fs.promises.stat(filePath);
+        return {
+          filename,
+          path: filePath,
+          size: stats.size,
+          created: stats.mtime
+        };
+      })
+    );
+
+    // Sort by creation date, newest first
+    backups.sort((a, b) => new Date(b.created) - new Date(a.created));
+
+    res.json({
+      success: true,
+      backups
+    });
+  } catch (error) {
+    console.error('Error listing backups:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Restore database from a backup
+router.post('/database/restore', async (req, res) => {
+  try {
+    const { filename } = req.body;
+
+    if (!filename) {
+      return res.status(400).json({ success: false, error: 'Filename is required' });
+    }
+
+    const fs = await import('fs');
+    const path = await import('path');
+    const dbPath = process.env.DATABASE_PATH || './data/opsdec.db';
+    const dataDir = path.dirname(dbPath);
+    const backupPath = path.join(dataDir, filename);
+
+    // Validate that the backup file exists and is in the data directory
+    if (!backupPath.startsWith(dataDir) || !filename.startsWith('opsdec_backup_')) {
+      return res.status(400).json({ success: false, error: 'Invalid backup filename' });
+    }
+
+    try {
+      await fs.promises.access(backupPath);
+    } catch {
+      return res.status(404).json({ success: false, error: 'Backup file not found' });
+    }
+
+    // Create a safety backup of current database before restoring
+    const safetyBackupPath = path.join(dataDir, `opsdec_pre_restore_${Date.now()}.db`);
+    await fs.promises.copyFile(dbPath, safetyBackupPath);
+
+    console.log(`Created safety backup at ${safetyBackupPath}`);
+    console.log(`Restoring database from ${backupPath}`);
+
+    // Close the current database connection
+    db.close();
+
+    // Copy backup over current database
+    await fs.promises.copyFile(backupPath, dbPath);
+
+    // Reinitialize the database connection
+    const Database = (await import('better-sqlite3')).default;
+    global.db = new Database(dbPath);
+
+    console.log('Database restored successfully');
+
+    res.json({
+      success: true,
+      message: 'Database restored successfully',
+      safetyBackup: safetyBackupPath
+    });
+  } catch (error) {
+    console.error('Database restore error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Download a backup file
+router.get('/database/backups/:filename/download', async (req, res) => {
+  try {
+    const { filename } = req.params;
+
+    const fs = await import('fs');
+    const path = await import('path');
+    const dbPath = process.env.DATABASE_PATH || './data/opsdec.db';
+    const dataDir = path.dirname(dbPath);
+    const backupPath = path.join(dataDir, filename);
+
+    // Validate that the backup file is in the data directory and has correct naming
+    if (!backupPath.startsWith(dataDir) || !filename.startsWith('opsdec_backup_')) {
+      return res.status(400).json({ success: false, error: 'Invalid backup filename' });
+    }
+
+    // Check if file exists
+    try {
+      await fs.promises.access(backupPath);
+    } catch {
+      return res.status(404).json({ success: false, error: 'Backup file not found' });
+    }
+
+    console.log(`Downloading backup: ${filename}`);
+
+    // Set headers for file download
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    // Stream the file to the response
+    const fileStream = (await import('fs')).default.createReadStream(backupPath);
+    fileStream.pipe(res);
+  } catch (error) {
+    console.error('Download backup error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Delete a backup file
+router.delete('/database/backups/:filename', async (req, res) => {
+  try {
+    const { filename } = req.params;
+
+    const fs = await import('fs');
+    const path = await import('path');
+    const dbPath = process.env.DATABASE_PATH || './data/opsdec.db';
+    const dataDir = path.dirname(dbPath);
+    const backupPath = path.join(dataDir, filename);
+
+    // Validate that the backup file is in the data directory and has correct naming
+    if (!backupPath.startsWith(dataDir) || !filename.startsWith('opsdec_backup_')) {
+      return res.status(400).json({ success: false, error: 'Invalid backup filename' });
+    }
+
+    // Check if file exists
+    try {
+      await fs.promises.access(backupPath);
+    } catch {
+      return res.status(404).json({ success: false, error: 'Backup file not found' });
+    }
+
+    // Delete the backup file
+    await fs.promises.unlink(backupPath);
+
+    console.log(`Deleted backup: ${filename}`);
+
+    res.json({
+      success: true,
+      message: 'Backup deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete backup error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getDashboardStats, getActivity } from '../utils/api';
 import { formatDuration, formatTimeAgo } from '../utils/format';
 import { Users, PlayCircle, TrendingUp, Clock, Activity as ActivityIcon, Film, Tv, Headphones, ChevronDown, MapPin } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 function Dashboard() {
+  const navigate = useNavigate();
   const getServerIcon = (serverType, size = 'w-5 h-5') => {
     switch (serverType) {
       case 'emby':
@@ -166,7 +168,10 @@ function Dashboard() {
 
                     {/* User and Platform info */}
                     <div className="flex items-center gap-4 text-sm text-gray-400 mb-3">
-                      <div className="flex items-center gap-2">
+                      <div
+                        className="flex items-center gap-2 cursor-pointer group"
+                        onClick={() => navigate(`/users/${session.user_id}`)}
+                      >
                         {session.user_thumb ? (
                           <img
                             src={`/proxy/image?url=${encodeURIComponent(session.user_thumb)}`}
@@ -178,7 +183,7 @@ function Dashboard() {
                             {session.username.charAt(0).toUpperCase()}
                           </div>
                         )}
-                        <span>{session.username}</span>
+                        <span className="group-hover:text-primary-400 transition-colors">{session.username}</span>
                       </div>
                       <span>•</span>
                       <span className="capitalize">{session.media_type}</span>
@@ -273,7 +278,8 @@ function Dashboard() {
                   {stats.topWatchers.slice(0, 5).map((user, index) => (
                     <div
                       key={user.username}
-                      className="flex items-center gap-2 px-3 py-1.5 hover:bg-dark-700 transition-colors"
+                      onClick={() => user.user_id && navigate(`/users/${user.user_id}`)}
+                      className="flex items-center gap-2 px-3 py-1.5 hover:bg-dark-700 transition-colors cursor-pointer"
                     >
                       <div className="flex-shrink-0 w-4 text-center text-gray-500 text-xs">
                         {index + 1}
@@ -312,7 +318,8 @@ function Dashboard() {
                   {stats.topListeners.slice(0, 5).map((user, index) => (
                     <div
                       key={user.username}
-                      className="flex items-center gap-2 px-3 py-1.5 hover:bg-dark-700 transition-colors"
+                      onClick={() => user.user_id && navigate(`/users/${user.user_id}`)}
+                      className="flex items-center gap-2 px-3 py-1.5 hover:bg-dark-700 transition-colors cursor-pointer"
                     >
                       <div className="flex-shrink-0 w-4 text-center text-gray-500 text-xs">
                         {index + 1}
@@ -395,7 +402,14 @@ function Dashboard() {
                             <div className="text-xs text-gray-400 mb-2">Watched by:</div>
                             <div className="space-y-1">
                               {item.users.map((user, userIndex) => (
-                                <div key={userIndex} className="flex items-center gap-2">
+                                <div
+                                  key={userIndex}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    user.user_id && navigate(`/users/${user.user_id}`);
+                                  }}
+                                  className="flex items-center gap-2 cursor-pointer hover:bg-dark-700 p-1 rounded transition-colors"
+                                >
                                   {user.thumb ? (
                                     <img
                                       src={`/proxy/image?url=${encodeURIComponent(user.thumb)}`}
@@ -478,7 +492,14 @@ function Dashboard() {
                             <div className="text-xs text-gray-400 mb-2">Watched by:</div>
                             <div className="space-y-1">
                               {item.users.map((user, userIndex) => (
-                                <div key={userIndex} className="flex items-center gap-2">
+                                <div
+                                  key={userIndex}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    user.user_id && navigate(`/users/${user.user_id}`);
+                                  }}
+                                  className="flex items-center gap-2 cursor-pointer hover:bg-dark-700 p-1 rounded transition-colors"
+                                >
                                   {user.thumb ? (
                                     <img
                                       src={`/proxy/image?url=${encodeURIComponent(user.thumb)}`}
@@ -561,7 +582,14 @@ function Dashboard() {
                             <div className="text-xs text-gray-400 mb-2">Listened by:</div>
                             <div className="space-y-1">
                               {item.users.map((user, userIndex) => (
-                                <div key={userIndex} className="flex items-center gap-2">
+                                <div
+                                  key={userIndex}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    user.user_id && navigate(`/users/${user.user_id}`);
+                                  }}
+                                  className="flex items-center gap-2 cursor-pointer hover:bg-dark-700 p-1 rounded transition-colors"
+                                >
                                   {user.thumb ? (
                                     <img
                                       src={`/proxy/image?url=${encodeURIComponent(user.thumb)}`}
@@ -632,16 +660,26 @@ function Dashboard() {
                         </div>
 
                         {isExpanded && location.users?.length > 0 && (
-                          <div className="bg-dark-800 px-3 py-2">
-                            <div className="text-xs text-gray-400 mb-1.5">Users:</div>
-                            <div className="flex flex-wrap gap-1.5">
+                          <div className="px-3 py-2 bg-dark-800 border-t border-dark-600">
+                            <div className="text-xs text-gray-400 mb-2">Streams from:</div>
+                            <div className="space-y-1">
                               {location.users.map((user, userIndex) => (
-                                <span
-                                  key={userIndex}
-                                  className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-primary-900/30 text-primary-300"
-                                >
-                                  {user}
-                                </span>
+                                <div key={userIndex} className="flex items-center gap-2">
+                                  {user.thumb ? (
+                                    <img
+                                      src={`/proxy/image?url=${encodeURIComponent(user.thumb)}`}
+                                      alt={user.username}
+                                      className="w-5 h-5 rounded-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="w-5 h-5 rounded-full bg-primary-600 flex items-center justify-center">
+                                      <span className="text-xs text-white font-semibold">
+                                        {user.username.charAt(0).toUpperCase()}
+                                      </span>
+                                    </div>
+                                  )}
+                                  <span className="text-xs text-white">{user.username}</span>
+                                </div>
                               ))}
                             </div>
                           </div>
