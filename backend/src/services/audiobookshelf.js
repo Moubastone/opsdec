@@ -1,5 +1,6 @@
 import axios from 'axios';
 import https from 'https';
+import { io } from 'socket.io-client';
 
 class AudiobookshelfService {
   constructor(baseUrl, apiKey) {
@@ -28,6 +29,15 @@ class AudiobookshelfService {
         rejectUnauthorized: false, // Allow self-signed certificates
       }),
     });
+
+    // Socket.io connection state
+    this.socket = null;
+    this.socketReconnectAttempts = 0;
+    this.socketMaxReconnectAttempts = 10;
+    this.socketReconnectDelay = 1000; // Start with 1 second
+    this.socketReconnectTimer = null;
+    this.socketEventHandlers = [];
+    this.socketConnected = false;
   }
 
   async testConnection() {
@@ -314,6 +324,165 @@ class AudiobookshelfService {
       console.error('Error parsing Audiobookshelf playback session:', error.message);
       return null;
     }
+  }
+
+  /**
+   * Socket.io connection for real-time notifications
+   */
+  connectSocket() {
+    if (this.socket && this.socket.connected) {
+      console.log('🔌 Audiobookshelf Socket.io already connected');
+      return;
+    }
+
+    try {
+      console.log('🔌 Connecting to Audiobookshelf Socket.io...');
+
+      // Socket.io connection with authentication
+      this.socket = io(this.baseUrl, {
+        auth: {
+          token: this.apiKey
+        },
+        transports: ['websocket', 'polling'],
+        rejectUnauthorized: false, // Allow self-signed certificates
+        reconnection: false, // We'll handle reconnection manually
+      });
+
+      this.socket.on('connect', () => {
+        console.log('✅ Audiobookshelf Socket.io connected');
+        this.socketConnected = true;
+        this.socketReconnectAttempts = 0;
+        this.socketReconnectDelay = 1000; // Reset delay
+      });
+
+      this.socket.on('disconnect', (reason) => {
+        console.log(`🔌 Audiobookshelf Socket.io disconnected (reason: ${reason})`);
+        this.socketConnected = false;
+
+        // Only reconnect if not a manual disconnect
+        if (reason !== 'io client disconnect') {
+          this.scheduleReconnect();
+        }
+      });
+
+      this.socket.on('connect_error', (error) => {
+        console.error('❌ Audiobookshelf Socket.io connection error:', error.message);
+        this.scheduleReconnect();
+      });
+
+      // Listen for all stream-related events
+      // Based on Audiobookshelf API documentation
+      const streamEvents = [
+        'user_stream_update',      // User stream state changed
+        'user_item_progress_updated', // Progress updated for an item
+        'stream_open',             // Stream opened
+        'stream_closed',           // Stream closed
+        'stream_progress',         // Stream progress update
+        'stream_ready',            // Stream is ready
+        'playback_session_started',
+        'playback_session_ended',
+      ];
+
+      streamEvents.forEach(eventName => {
+        this.socket.on(eventName, (data) => {
+          console.log(`📨 Audiobookshelf Socket.io event: ${eventName}`);
+          this.handleSocketEvent(eventName, data);
+        });
+      });
+
+      // Generic catch-all for any events we might have missed
+      this.socket.onAny((eventName, ...args) => {
+        if (!streamEvents.includes(eventName) &&
+            !['connect', 'disconnect', 'connect_error', 'reconnect'].includes(eventName)) {
+          console.log(`📨 Audiobookshelf Socket.io unknown event: ${eventName}`, args);
+        }
+      });
+
+    } catch (error) {
+      console.error('Error creating Audiobookshelf Socket.io connection:', error.message);
+      this.scheduleReconnect();
+    }
+  }
+
+  handleSocketEvent(eventName, data) {
+    try {
+      // Map event names to our internal event types
+      let eventType = 'session_update';
+
+      if (eventName === 'stream_open' || eventName === 'playback_session_started') {
+        eventType = 'session_started';
+      } else if (eventName === 'stream_closed' || eventName === 'playback_session_ended') {
+        eventType = 'session_stopped';
+      } else if (eventName === 'stream_progress' || eventName === 'user_item_progress_updated') {
+        eventType = 'session_progress';
+      }
+
+      // Notify all registered event handlers
+      for (const handler of this.socketEventHandlers) {
+        try {
+          handler({
+            type: eventType,
+            originalEvent: eventName,
+            data: data
+          });
+        } catch (error) {
+          console.error('Error in Socket.io event handler:', error.message);
+        }
+      }
+    } catch (error) {
+      console.error('Error handling Audiobookshelf Socket.io event:', error.message);
+    }
+  }
+
+  scheduleReconnect() {
+    if (this.socketReconnectTimer) {
+      clearTimeout(this.socketReconnectTimer);
+    }
+
+    if (this.socketReconnectAttempts >= this.socketMaxReconnectAttempts) {
+      console.log(`⚠️  Max Audiobookshelf Socket.io reconnection attempts (${this.socketMaxReconnectAttempts}) reached. Giving up.`);
+      return;
+    }
+
+    this.socketReconnectAttempts++;
+
+    // Exponential backoff: 1s, 2s, 4s, 8s, 16s, 32s, 64s max
+    const delay = Math.min(this.socketReconnectDelay * Math.pow(2, this.socketReconnectAttempts - 1), 64000);
+
+    console.log(`🔄 Reconnecting to Audiobookshelf Socket.io in ${delay / 1000}s (attempt ${this.socketReconnectAttempts}/${this.socketMaxReconnectAttempts})...`);
+
+    this.socketReconnectTimer = setTimeout(() => {
+      this.connectSocket();
+    }, delay);
+  }
+
+  disconnectSocket() {
+    if (this.socketReconnectTimer) {
+      clearTimeout(this.socketReconnectTimer);
+      this.socketReconnectTimer = null;
+    }
+
+    if (this.socket) {
+      console.log('🔌 Disconnecting Audiobookshelf Socket.io...');
+      this.socket.disconnect();
+      this.socket = null;
+      this.socketConnected = false;
+    }
+  }
+
+  onSocketEvent(handler) {
+    this.socketEventHandlers.push(handler);
+  }
+
+  removeSocketEventHandler(handler) {
+    const index = this.socketEventHandlers.indexOf(handler);
+    if (index > -1) {
+      this.socketEventHandlers.splice(index, 1);
+    }
+  }
+
+  isSocketConnected() {
+    return this.socketConnected && this.socket && this.socket.connected;
   }
 }
 

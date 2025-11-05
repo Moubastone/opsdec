@@ -1,4 +1,6 @@
 import axios from 'axios';
+import WebSocket from 'ws';
+import crypto from 'crypto';
 
 class EmbyService {
   constructor(baseUrl, apiKey) {
@@ -10,6 +12,16 @@ class EmbyService {
         'X-Emby-Token': this.apiKey,
       },
     });
+
+    // WebSocket connection state
+    this.ws = null;
+    this.wsReconnectAttempts = 0;
+    this.wsMaxReconnectAttempts = 10;
+    this.wsReconnectDelay = 1000; // Start with 1 second
+    this.wsReconnectTimer = null;
+    this.wsEventHandlers = [];
+    this.wsConnected = false;
+    this.deviceId = crypto.randomUUID(); // Generate unique device ID
   }
 
   async testConnection() {
@@ -193,6 +205,192 @@ class EmbyService {
       console.error('Error fetching recently added:', error.message);
       return [];
     }
+  }
+
+  /**
+   * WebSocket connection for real-time notifications
+   */
+  connectWebSocket() {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      console.log('🔌 Emby WebSocket already connected');
+      return;
+    }
+
+    try {
+      // Convert HTTP/HTTPS URL to WS/WSS
+      const wsUrl = this.baseUrl
+        .replace('http://', 'ws://')
+        .replace('https://', 'wss://');
+
+      const wsEndpoint = `${wsUrl}?api_key=${this.apiKey}&deviceId=${this.deviceId}`;
+
+      console.log('🔌 Connecting to Emby WebSocket...');
+      this.ws = new WebSocket(wsEndpoint, {
+        rejectUnauthorized: false, // Allow self-signed certificates
+      });
+
+      this.ws.on('open', () => {
+        console.log('✅ Emby WebSocket connected');
+        this.wsConnected = true;
+        this.wsReconnectAttempts = 0;
+        this.wsReconnectDelay = 1000; // Reset delay
+
+        // Subscribe to session updates (every 1500ms)
+        this.ws.send(JSON.stringify({
+          MessageType: 'SessionsStart',
+          Data: '0,1500'
+        }));
+        console.log('📡 Subscribed to Emby session updates');
+      });
+
+      this.ws.on('message', (data) => {
+        try {
+          const message = JSON.parse(data.toString());
+          this.handleWebSocketMessage(message);
+        } catch (error) {
+          console.error('Error parsing Emby WebSocket message:', error.message);
+        }
+      });
+
+      this.ws.on('error', (error) => {
+        console.error('❌ Emby WebSocket error:', error.message);
+      });
+
+      this.ws.on('close', (code, reason) => {
+        console.log(`🔌 Emby WebSocket closed (code: ${code}, reason: ${reason || 'none'})`);
+        this.wsConnected = false;
+        this.ws = null;
+        this.scheduleReconnect();
+      });
+
+    } catch (error) {
+      console.error('Error creating Emby WebSocket:', error.message);
+      this.scheduleReconnect();
+    }
+  }
+
+  handleWebSocketMessage(message) {
+    try {
+      const messageType = message.MessageType;
+      const data = message.Data;
+
+      if (!messageType) return;
+
+      // Filter for interesting message types
+      const interestingTypes = ['Sessions', 'PlaybackStarted', 'PlaybackStopped', 'SessionEnded', 'PlaybackProgress'];
+      if (!interestingTypes.includes(messageType)) {
+        return;
+      }
+
+      console.log(`📨 Emby WebSocket event: ${messageType}`);
+
+      // Handle different message types
+      if (messageType === 'Sessions') {
+        // Sessions update - contains full session data
+        this.handleSessionsUpdate(data);
+      } else if (messageType === 'PlaybackStarted' || messageType === 'PlaybackStopped' || messageType === 'SessionEnded' || messageType === 'PlaybackProgress') {
+        // Playback state changed
+        this.handlePlaybackEvent(messageType, data);
+      }
+
+      // Notify all registered event handlers
+      for (const handler of this.wsEventHandlers) {
+        try {
+          handler({ type: messageType, data: data });
+        } catch (error) {
+          console.error('Error in WebSocket event handler:', error.message);
+        }
+      }
+    } catch (error) {
+      console.error('Error handling Emby WebSocket message:', error.message);
+    }
+  }
+
+  handleSessionsUpdate(sessions) {
+    // Sessions update received - notify handlers to check for updates
+    for (const handler of this.wsEventHandlers) {
+      try {
+        handler({
+          type: 'session_update',
+          sessions: sessions
+        });
+      } catch (error) {
+        console.error('Error in sessions update handler:', error.message);
+      }
+    }
+  }
+
+  handlePlaybackEvent(eventType, data) {
+    // Playback event (Started, Stopped, SessionEnded, Progress)
+    const eventMap = {
+      'PlaybackStarted': 'session_started',
+      'PlaybackStopped': 'session_stopped',
+      'SessionEnded': 'session_ended',
+      'PlaybackProgress': 'session_progress'
+    };
+
+    for (const handler of this.wsEventHandlers) {
+      try {
+        handler({
+          type: eventMap[eventType] || 'session_update',
+          eventType: eventType,
+          data: data
+        });
+      } catch (error) {
+        console.error('Error in playback event handler:', error.message);
+      }
+    }
+  }
+
+  scheduleReconnect() {
+    if (this.wsReconnectTimer) {
+      clearTimeout(this.wsReconnectTimer);
+    }
+
+    if (this.wsReconnectAttempts >= this.wsMaxReconnectAttempts) {
+      console.log(`⚠️  Max Emby WebSocket reconnection attempts (${this.wsMaxReconnectAttempts}) reached. Giving up.`);
+      return;
+    }
+
+    this.wsReconnectAttempts++;
+
+    // Exponential backoff: 1s, 2s, 4s, 8s, 16s, 32s, 64s max
+    const delay = Math.min(this.wsReconnectDelay * Math.pow(2, this.wsReconnectAttempts - 1), 64000);
+
+    console.log(`🔄 Reconnecting to Emby WebSocket in ${delay / 1000}s (attempt ${this.wsReconnectAttempts}/${this.wsMaxReconnectAttempts})...`);
+
+    this.wsReconnectTimer = setTimeout(() => {
+      this.connectWebSocket();
+    }, delay);
+  }
+
+  disconnectWebSocket() {
+    if (this.wsReconnectTimer) {
+      clearTimeout(this.wsReconnectTimer);
+      this.wsReconnectTimer = null;
+    }
+
+    if (this.ws) {
+      console.log('🔌 Disconnecting Emby WebSocket...');
+      this.ws.close();
+      this.ws = null;
+      this.wsConnected = false;
+    }
+  }
+
+  onWebSocketEvent(handler) {
+    this.wsEventHandlers.push(handler);
+  }
+
+  removeWebSocketEventHandler(handler) {
+    const index = this.wsEventHandlers.indexOf(handler);
+    if (index > -1) {
+      this.wsEventHandlers.splice(index, 1);
+    }
+  }
+
+  isWebSocketConnected() {
+    return this.wsConnected && this.ws && this.ws.readyState === WebSocket.OPEN;
   }
 }
 

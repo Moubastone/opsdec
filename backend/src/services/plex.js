@@ -1,4 +1,5 @@
 import axios from 'axios';
+import WebSocket from 'ws';
 
 class PlexService {
   constructor(baseUrl, token) {
@@ -11,6 +12,15 @@ class PlexService {
         'Accept': 'application/json',
       },
     });
+
+    // WebSocket connection state
+    this.ws = null;
+    this.wsReconnectAttempts = 0;
+    this.wsMaxReconnectAttempts = 10;
+    this.wsReconnectDelay = 1000; // Start with 1 second
+    this.wsReconnectTimer = null;
+    this.wsEventHandlers = [];
+    this.wsConnected = false;
   }
 
   async testConnection() {
@@ -215,6 +225,196 @@ class PlexService {
       console.error('Error fetching Plex history:', error.message);
       return [];
     }
+  }
+
+  /**
+   * WebSocket connection for real-time notifications
+   */
+  connectWebSocket() {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      console.log('🔌 Plex WebSocket already connected');
+      return;
+    }
+
+    try {
+      // Convert HTTP/HTTPS URL to WS/WSS
+      const wsUrl = this.baseUrl
+        .replace('http://', 'ws://')
+        .replace('https://', 'wss://');
+
+      const wsEndpoint = `${wsUrl}/:/websockets/notifications?X-Plex-Token=${this.token}`;
+
+      console.log('🔌 Connecting to Plex WebSocket...');
+      this.ws = new WebSocket(wsEndpoint, {
+        rejectUnauthorized: false, // Allow self-signed certificates
+      });
+
+      this.ws.on('open', () => {
+        console.log('✅ Plex WebSocket connected');
+        this.wsConnected = true;
+        this.wsReconnectAttempts = 0;
+        this.wsReconnectDelay = 1000; // Reset delay
+      });
+
+      this.ws.on('message', (data) => {
+        try {
+          const message = JSON.parse(data.toString());
+          this.handleWebSocketMessage(message);
+        } catch (error) {
+          console.error('Error parsing Plex WebSocket message:', error.message);
+        }
+      });
+
+      this.ws.on('error', (error) => {
+        console.error('❌ Plex WebSocket error:', error.message);
+      });
+
+      this.ws.on('close', (code, reason) => {
+        console.log(`🔌 Plex WebSocket closed (code: ${code}, reason: ${reason || 'none'})`);
+        this.wsConnected = false;
+        this.ws = null;
+        this.scheduleReconnect();
+      });
+
+    } catch (error) {
+      console.error('Error creating Plex WebSocket:', error.message);
+      this.scheduleReconnect();
+    }
+  }
+
+  handleWebSocketMessage(message) {
+    try {
+      const container = message.NotificationContainer;
+      if (!container) return;
+
+      const type = container.type;
+
+      // Filter for interesting message types (playing, timeline, activity)
+      const interestingTypes = ['playing', 'timeline', 'activity'];
+      if (!interestingTypes.includes(type)) {
+        return;
+      }
+
+      console.log(`📨 Plex WebSocket event: ${type}`);
+
+      // Handle 'playing' notifications - these contain PlaySessionStateNotification
+      if (type === 'playing' && container.PlaySessionStateNotification) {
+        const notifications = Array.isArray(container.PlaySessionStateNotification)
+          ? container.PlaySessionStateNotification
+          : [container.PlaySessionStateNotification];
+
+        for (const notification of notifications) {
+          this.handlePlayingNotification(notification);
+        }
+      }
+
+      // Notify all registered event handlers
+      for (const handler of this.wsEventHandlers) {
+        try {
+          handler({ type, data: container });
+        } catch (error) {
+          console.error('Error in WebSocket event handler:', error.message);
+        }
+      }
+    } catch (error) {
+      console.error('Error handling Plex WebSocket message:', error.message);
+    }
+  }
+
+  async handlePlayingNotification(notification) {
+    try {
+      const sessionKey = notification.sessionKey;
+      const state = notification.state; // 'playing', 'paused', 'stopped', 'buffering'
+      const ratingKey = notification.ratingKey;
+
+      console.log(`   Session ${sessionKey}: ${state} (ratingKey: ${ratingKey})`);
+
+      // When we receive a playing notification, fetch the full session data
+      // This ensures we have all the metadata and stream info
+      if (state === 'playing' || state === 'paused' || state === 'buffering') {
+        // Trigger a session fetch to get updated data
+        // The monitor service will handle this through its normal polling
+        // But we can notify handlers that something changed
+        for (const handler of this.wsEventHandlers) {
+          try {
+            handler({
+              type: 'session_update',
+              sessionKey,
+              state,
+              ratingKey,
+            });
+          } catch (error) {
+            console.error('Error in session update handler:', error.message);
+          }
+        }
+      } else if (state === 'stopped') {
+        // Session stopped - notify handlers
+        for (const handler of this.wsEventHandlers) {
+          try {
+            handler({
+              type: 'session_stopped',
+              sessionKey,
+              ratingKey,
+            });
+          } catch (error) {
+            console.error('Error in session stopped handler:', error.message);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error handling playing notification:', error.message);
+    }
+  }
+
+  scheduleReconnect() {
+    if (this.wsReconnectTimer) {
+      clearTimeout(this.wsReconnectTimer);
+    }
+
+    if (this.wsReconnectAttempts >= this.wsMaxReconnectAttempts) {
+      console.log(`⚠️  Max Plex WebSocket reconnection attempts (${this.wsMaxReconnectAttempts}) reached. Giving up.`);
+      return;
+    }
+
+    this.wsReconnectAttempts++;
+
+    // Exponential backoff: 1s, 2s, 4s, 8s, 16s, 32s, 64s max
+    const delay = Math.min(this.wsReconnectDelay * Math.pow(2, this.wsReconnectAttempts - 1), 64000);
+
+    console.log(`🔄 Reconnecting to Plex WebSocket in ${delay / 1000}s (attempt ${this.wsReconnectAttempts}/${this.wsMaxReconnectAttempts})...`);
+
+    this.wsReconnectTimer = setTimeout(() => {
+      this.connectWebSocket();
+    }, delay);
+  }
+
+  disconnectWebSocket() {
+    if (this.wsReconnectTimer) {
+      clearTimeout(this.wsReconnectTimer);
+      this.wsReconnectTimer = null;
+    }
+
+    if (this.ws) {
+      console.log('🔌 Disconnecting Plex WebSocket...');
+      this.ws.close();
+      this.ws = null;
+      this.wsConnected = false;
+    }
+  }
+
+  onWebSocketEvent(handler) {
+    this.wsEventHandlers.push(handler);
+  }
+
+  removeWebSocketEventHandler(handler) {
+    const index = this.wsEventHandlers.indexOf(handler);
+    if (index > -1) {
+      this.wsEventHandlers.splice(index, 1);
+    }
+  }
+
+  isWebSocketConnected() {
+    return this.wsConnected && this.ws && this.ws.readyState === WebSocket.OPEN;
   }
 }
 

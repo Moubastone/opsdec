@@ -109,6 +109,10 @@ function History() {
           aVal = a.percent_complete || 0;
           bVal = b.percent_complete || 0;
           break;
+        case 'stream_duration':
+          aVal = a.stream_duration || 0;
+          bVal = b.stream_duration || 0;
+          break;
         case 'watched_at':
           aVal = a.watched_at || 0;
           bVal = b.watched_at || 0;
@@ -384,6 +388,15 @@ function History() {
                     </th>
                     <th
                       className="px-6 py-4 text-left text-sm font-semibold text-gray-300 cursor-pointer hover:bg-dark-600 transition-colors"
+                      onClick={() => handleSort('stream_duration')}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>Stream Time</span>
+                        {getSortIcon('stream_duration')}
+                      </div>
+                    </th>
+                    <th
+                      className="px-6 py-4 text-left text-sm font-semibold text-gray-300 cursor-pointer hover:bg-dark-600 transition-colors"
                       onClick={() => handleSort('watched_at')}
                     >
                       <div className="flex items-center gap-2">
@@ -457,6 +470,11 @@ function History() {
                           </div>
                           <span className="text-sm text-gray-400">{item.percent_complete}%</span>
                         </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-gray-400 text-sm">
+                          {item.stream_duration ? formatDuration(item.stream_duration) : '-'}
+                        </span>
                       </td>
                       <td className="px-6 py-4">
                         <span className="text-gray-400 text-sm">{formatTimestamp(item.watched_at)}</span>

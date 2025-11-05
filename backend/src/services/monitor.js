@@ -190,12 +190,15 @@ function updateSession(activity, serverType) {
       // Add old session to history if it meets criteria
       if (shouldAddToHistory(existing.title, existing.duration, existing.progress_percent, existing.user_id)) {
         try {
+          // Calculate stream duration: how long they actually watched this specific item
+          const streamDuration = stopNow - existing.started_at;
+
           db.prepare(`
             INSERT INTO history (
               session_id, server_type, user_id, username,
               media_type, media_id, title, parent_title, grandparent_title,
-              watched_at, duration, percent_complete, thumb
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              watched_at, duration, percent_complete, thumb, stream_duration
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `).run(
             oldSessionId,
             existing.server_type,
@@ -209,7 +212,8 @@ function updateSession(activity, serverType) {
             stopNow,
             existing.duration,
             existing.progress_percent,
-            existing.thumb
+            existing.thumb,
+            streamDuration
           );
 
           db.prepare(`
@@ -416,12 +420,15 @@ function stopInactiveSessions(activeSessionKeys) {
           `).get(sessionData.id, sessionData.media_id);
 
           if (!existingHistory) {
+            // Calculate stream duration: how long they actually watched this specific item
+            const streamDuration = now - sessionData.started_at;
+
             db.prepare(`
               INSERT INTO history (
                 session_id, server_type, user_id, username,
                 media_type, media_id, title, parent_title, grandparent_title,
-                watched_at, duration, percent_complete, thumb
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                watched_at, duration, percent_complete, thumb, stream_duration
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).run(
               sessionData.id,
               sessionData.server_type,
@@ -435,7 +442,8 @@ function stopInactiveSessions(activeSessionKeys) {
               now,
               sessionData.duration,
               session.progress_percent,
-              sessionData.thumb
+              sessionData.thumb,
+              streamDuration
             );
 
             // Update user play count
@@ -512,10 +520,65 @@ export function startActivityMonitor() {
   console.log(`🔄 Starting activity monitor (polling every ${pollInterval}s)...`);
   console.log(`   Monitoring: ${services.map(s => s.name).join(', ')}`);
 
+  // Set up WebSocket for Plex if available
+  if (plexService) {
+    console.log('🔌 Setting up Plex WebSocket for real-time updates...');
+
+    // Connect to WebSocket
+    plexService.connectWebSocket();
+
+    // Register event handler for session updates
+    plexService.onWebSocketEvent((event) => {
+      if (event.type === 'session_update' || event.type === 'session_stopped') {
+        console.log('📨 Plex WebSocket event triggered immediate session check');
+        // Immediately check activity when we get a WebSocket event
+        checkActivity(services);
+      }
+    });
+  }
+
+  // Set up WebSocket for Emby if available
+  if (embyService) {
+    console.log('🔌 Setting up Emby WebSocket for real-time updates...');
+
+    // Connect to WebSocket
+    embyService.connectWebSocket();
+
+    // Register event handler for session updates
+    embyService.onWebSocketEvent((event) => {
+      if (event.type === 'session_update' || event.type === 'session_started' ||
+          event.type === 'session_stopped' || event.type === 'session_ended' ||
+          event.type === 'session_progress') {
+        console.log('📨 Emby WebSocket event triggered immediate session check');
+        // Immediately check activity when we get a WebSocket event
+        checkActivity(services);
+      }
+    });
+  }
+
+  // Set up Socket.io for Audiobookshelf if available
+  if (audiobookshelfService) {
+    console.log('🔌 Setting up Audiobookshelf Socket.io for real-time updates...');
+
+    // Connect to Socket.io
+    audiobookshelfService.connectSocket();
+
+    // Register event handler for session updates
+    audiobookshelfService.onSocketEvent((event) => {
+      if (event.type === 'session_update' || event.type === 'session_started' ||
+          event.type === 'session_stopped' || event.type === 'session_progress') {
+        console.log('📨 Audiobookshelf Socket.io event triggered immediate session check');
+        // Immediately check activity when we get a Socket.io event
+        checkActivity(services);
+      }
+    });
+  }
+
   // Initial check
   checkActivity(services);
 
   // Schedule periodic checks and store the cron job
+  // This serves as a fallback when WebSocket disconnects or misses events
   cronJob = cron.schedule(`*/${pollInterval} * * * * *`, () => {
     checkActivity(services);
   });
@@ -528,6 +591,22 @@ export function restartMonitoring() {
   if (cronJob) {
     cronJob.stop();
     console.log('   Stopped existing monitoring');
+  }
+
+  // Disconnect WebSocket connections
+  if (plexService && plexService.disconnectWebSocket) {
+    plexService.disconnectWebSocket();
+    console.log('   Disconnected Plex WebSocket');
+  }
+
+  if (embyService && embyService.disconnectWebSocket) {
+    embyService.disconnectWebSocket();
+    console.log('   Disconnected Emby WebSocket');
+  }
+
+  if (audiobookshelfService && audiobookshelfService.disconnectSocket) {
+    audiobookshelfService.disconnectSocket();
+    console.log('   Disconnected Audiobookshelf Socket.io');
   }
 
   // Clear existing services

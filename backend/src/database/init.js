@@ -204,6 +204,15 @@ export function initDatabase() {
       console.log('🔧 Adding history_enabled column to users...');
       db.exec('ALTER TABLE users ADD COLUMN history_enabled INTEGER DEFAULT 1');
     }
+
+    // Add stream_duration column to history table if it doesn't exist
+    const historyColumns = db.prepare('PRAGMA table_info(history)').all();
+    const historyColumnNames = historyColumns.map(col => col.name);
+
+    if (!historyColumnNames.includes('stream_duration')) {
+      console.log('🔧 Adding stream_duration column to history...');
+      db.exec('ALTER TABLE history ADD COLUMN stream_duration INTEGER'); // in seconds
+    }
   } catch (error) {
     console.error('Migration error:', error.message);
   }
