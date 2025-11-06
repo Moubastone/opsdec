@@ -616,7 +616,7 @@ router.get('/stats/dashboard', (req, res) => {
       WHERE city IS NOT NULL AND city != 'Unknown'
       GROUP BY city, region, country
       ORDER BY streams DESC
-      LIMIT 10
+      LIMIT 5
     `).all();
 
     const topLocations = topLocationsRaw.map(loc => {
