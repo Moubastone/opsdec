@@ -38,7 +38,7 @@ function getHistorySettings() {
 }
 
 // Helper function to determine if a session should be added to history
-function shouldAddToHistory(title, duration, progressPercent, userId) {
+function shouldAddToHistory(title, duration, progressPercent, userId, streamDuration = 0) {
   const settings = getHistorySettings();
 
   // Check if user has history enabled
@@ -63,11 +63,16 @@ function shouldAddToHistory(title, duration, progressPercent, userId) {
     }
   }
 
-  // Check minimum duration/progress thresholds
-  const actualWatchTime = duration && progressPercent ? (duration * progressPercent / 100) : 0;
+  // Check minimum stream duration (actual time spent watching)
+  // This prevents marking items as watched without actually streaming
+  if (streamDuration < settings.minDuration) {
+    console.log(`   Skipped history: Stream duration too short (${streamDuration}s < ${settings.minDuration}s)`);
+    return false;
+  }
 
-  if (progressPercent < settings.minPercent && actualWatchTime < settings.minDuration) {
-    console.log(`   Skipped history: Not watched enough (${progressPercent}%, ${Math.floor(actualWatchTime)}s)`);
+  // Check minimum progress thresholds
+  if (progressPercent < settings.minPercent) {
+    console.log(`   Skipped history: Not watched enough (${progressPercent}% < ${settings.minPercent}%)`);
     return false;
   }
 
@@ -208,12 +213,12 @@ async function updateSession(activity, serverType) {
       const stopNow = now;
       const oldSessionId = existing.id;
 
-      // Add old session to history if it meets criteria
-      if (shouldAddToHistory(existing.title, existing.duration, existing.progress_percent, existing.user_id)) {
-        try {
-          // Calculate stream duration: how long they actually watched this specific item
-          const streamDuration = stopNow - existing.started_at;
+      // Calculate stream duration: how long they actually watched this specific item
+      const streamDuration = stopNow - existing.started_at;
 
+      // Add old session to history if it meets criteria
+      if (shouldAddToHistory(existing.title, existing.duration, existing.progress_percent, existing.user_id, streamDuration)) {
+        try {
           db.prepare(`
             INSERT INTO history (
               session_id, server_type, user_id, username,
@@ -450,11 +455,15 @@ function stopInactiveSessions(activeSessionKeys) {
 
       console.log(`⏹️  Session stopped: ${session.username} - ${session.title} (${session.progress_percent}% / ${session.duration}s)`);
 
-      // Add to history if it meets criteria
-      if (shouldAddToHistory(session.title, session.duration, session.progress_percent, session.user_id)) {
-        try {
-          const sessionData = db.prepare('SELECT * FROM sessions WHERE session_key = ?').get(session.session_key);
+      // Get session data to calculate stream duration
+      const sessionData = db.prepare('SELECT * FROM sessions WHERE session_key = ?').get(session.session_key);
 
+      // Calculate stream duration: how long they actually watched this specific item
+      const streamDuration = now - sessionData.started_at;
+
+      // Add to history if it meets criteria
+      if (shouldAddToHistory(session.title, session.duration, session.progress_percent, session.user_id, streamDuration)) {
+        try {
           // Check if this media_id has already been added to history for this session
           const existingHistory = db.prepare(`
             SELECT id FROM history
@@ -462,8 +471,6 @@ function stopInactiveSessions(activeSessionKeys) {
           `).get(sessionData.id, sessionData.media_id);
 
           if (!existingHistory) {
-            // Calculate stream duration: how long they actually watched this specific item
-            const streamDuration = now - sessionData.started_at;
 
             db.prepare(`
               INSERT INTO history (
