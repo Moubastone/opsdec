@@ -261,9 +261,9 @@ router.get('/users/:userId/stats', (req, res) => {
     const totalPlays = mediaTypes.reduce((sum, mt) => sum + mt.count, 0);
     const totalDuration = mediaTypes.reduce((sum, mt) => sum + (mt.total_duration || 0), 0);
 
-    // Calculate watch duration (movies + episodes) and listen duration (tracks + audiobooks)
+    // Calculate watch duration (movies + episodes) and listen duration (tracks + audiobooks + books + music)
     const watchTypes = ['movie', 'episode'];
-    const listenTypes = ['track', 'audiobook'];
+    const listenTypes = ['track', 'audiobook', 'book', 'music'];
 
     const watchDuration = mediaTypes
       .filter(mt => watchTypes.includes(mt.media_type))
@@ -297,6 +297,23 @@ router.get('/users/:userId/stats', (req, res) => {
       FROM history
       WHERE user_id IN (${userIdsPlaceholders})
       GROUP BY server_type
+    `).all(...userIds);
+
+    // Get top streaming locations
+    const topLocations = db.prepare(`
+      SELECT
+        city,
+        region,
+        country,
+        COUNT(*) as count,
+        SUM(stream_duration) as total_duration
+      FROM history
+      WHERE user_id IN (${userIdsPlaceholders})
+        AND city IS NOT NULL
+        AND city != ''
+      GROUP BY city, region, country
+      ORDER BY count DESC
+      LIMIT 5
     `).all(...userIds);
 
     // Check if this is a mapped user
@@ -337,6 +354,7 @@ router.get('/users/:userId/stats', (req, res) => {
         mediaTypes,
         recentWatches,
         serverBreakdown,
+        topLocations,
       },
     });
   } catch (error) {

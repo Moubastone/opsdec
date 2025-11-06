@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getUserStats } from '../utils/api';
 import { formatTimeAgo, formatDuration } from '../utils/format';
-import { ArrowLeft, Film, Tv, Headphones, Music, Book, Server, Clock, Play, Activity, Link2, MapPin } from 'lucide-react';
+import { ArrowLeft, Film, Tv, Headphones, Music, Book, Server, Clock, Play, Activity, Link2, MapPin, ChevronDown, ChevronUp, Globe } from 'lucide-react';
 
 function UserDetails() {
   const { userId } = useParams();
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showMappedAccounts, setShowMappedAccounts] = useState(false);
 
   useEffect(() => {
     loadUserStats();
@@ -78,9 +79,9 @@ function UserDetails() {
       </div>
 
       {/* User Profile Card */}
-      <div className="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden">
-        <div className="p-6">
-          <div className="flex flex-col md:flex-row gap-6">
+      <div className="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden w-fit max-w-full">
+        <div className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
             {/* Avatar */}
             <div className="flex-shrink-0">
               {stats.user.thumb ? (
@@ -98,13 +99,22 @@ function UserDetails() {
 
             {/* User Info */}
             <div className="flex-1">
-              <h2 className="text-2xl font-bold text-white mb-2">{stats.user.username}</h2>
+              <div className="mb-2">
+                <h2 className="text-2xl font-bold text-white inline">{stats.user.username}</h2>
+                {stats.user.last_seen && (
+                  <span className="ml-3 text-sm text-gray-400">
+                    <Clock className="w-3 h-3 inline mr-1" />
+                    Last Seen {formatTimeAgo(stats.user.last_seen)}
+                  </span>
+                )}
+              </div>
+
               {stats.user.email && (
                 <p className="text-gray-400 mb-3">{stats.user.email}</p>
               )}
 
               {/* Badges */}
-              <div className="flex flex-wrap items-center gap-2 mb-4">
+              <div className="flex flex-wrap items-center gap-2">
                 {stats.user.is_admin === 1 && (
                   <span className="px-3 py-1 bg-primary-500/20 text-primary-400 rounded-full text-xs font-medium border border-primary-500/30">
                     Admin
@@ -113,11 +123,15 @@ function UserDetails() {
                 <span className={`px-3 py-1 rounded-full text-xs font-medium border ${stats.user.history_enabled ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-gray-500/20 text-gray-400 border-gray-500/30'}`}>
                   History {stats.user.history_enabled ? 'Enabled' : 'Disabled'}
                 </span>
-                {stats.user.is_mapped && (
-                  <span className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-xs font-medium border border-blue-500/30 flex items-center gap-1.5">
+                {stats.user.is_mapped && stats.user.mapped_usernames && stats.user.mapped_usernames.length > 0 && (
+                  <button
+                    onClick={() => setShowMappedAccounts(!showMappedAccounts)}
+                    className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-xs font-medium border border-blue-500/30 flex items-center gap-1.5 hover:bg-blue-500/30 transition-colors"
+                  >
                     <Link2 className="w-3 h-3" />
                     Mapped User ({stats.user.mapped_servers} servers)
-                  </span>
+                    {showMappedAccounts ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                  </button>
                 )}
                 {stats.user.server_types && stats.user.server_types.map((serverType, index) => (
                   <span key={index} className="px-3 py-1 bg-dark-700 rounded-full text-xs font-medium border border-dark-600 flex items-center gap-1.5">
@@ -127,14 +141,14 @@ function UserDetails() {
                 ))}
               </div>
 
-              {/* Mapped Accounts */}
-              {stats.user.is_mapped && stats.user.mapped_usernames && stats.user.mapped_usernames.length > 0 && (
-                <div className="mt-4 p-4 bg-dark-700/30 rounded-lg border border-dark-600">
-                  <div className="text-sm font-medium text-gray-300 mb-3">Mapped Accounts</div>
-                  <div className="space-y-2">
+              {/* Mapped Accounts Dropdown */}
+              {showMappedAccounts && stats.user.is_mapped && stats.user.mapped_usernames && stats.user.mapped_usernames.length > 0 && (
+                <div className="mt-3 p-3 bg-dark-700/30 rounded-lg border border-dark-600">
+                  <div className="text-xs font-medium text-gray-400 mb-2">Linked Accounts</div>
+                  <div className="space-y-1.5">
                     {stats.user.mapped_usernames.map((account, index) => (
-                      <div key={index} className="flex items-center gap-2 text-sm">
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-dark-800 rounded-md border border-dark-600">
+                      <div key={index} className="flex items-center gap-2 text-xs">
+                        <div className="flex items-center gap-2 px-2 py-1 bg-dark-800 rounded border border-dark-600">
                           {getServerIcon(account.server_type)}
                           <span className="text-gray-300">{account.username}</span>
                           <span className="text-gray-500">on</span>
@@ -145,157 +159,158 @@ function UserDetails() {
                   </div>
                 </div>
               )}
-
-              {/* Last Seen */}
-              {stats.user.last_seen && (
-                <div className="flex items-center gap-2 text-sm text-gray-400">
-                  <Clock className="w-4 h-4" />
-                  <span>Last seen {formatTimeAgo(stats.user.last_seen)}</span>
-                </div>
-              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Usage Statistics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-dark-800 rounded-xl border border-dark-700 p-5">
-          <div className="text-sm text-gray-400 mb-1">Total Plays</div>
-          <div className="text-3xl font-bold text-white">{stats.user.total_plays || 0}</div>
-        </div>
-        <div className="bg-dark-800 rounded-xl border border-dark-700 p-5">
-          <div className="text-sm text-gray-400 mb-1">Total Time</div>
-          <div className="text-3xl font-bold text-primary-400">{formatDuration(stats.user.total_duration || 0)}</div>
-        </div>
-        <div className="bg-dark-800 rounded-xl border border-dark-700 p-5">
-          <div className="text-sm text-gray-400 mb-1">Watch Time</div>
-          <div className="text-3xl font-bold text-white">{formatDuration(stats.user.watch_duration || 0)}</div>
-        </div>
-        <div className="bg-dark-800 rounded-xl border border-dark-700 p-5">
-          <div className="text-sm text-gray-400 mb-1">Listen Time</div>
-          <div className="text-3xl font-bold text-white">{formatDuration(stats.user.listen_duration || 0)}</div>
-        </div>
-      </div>
-
-      {/* Media Type Breakdown */}
-      {stats.mediaTypes && stats.mediaTypes.length > 0 && (
-        <div className="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden">
-          <div className="px-6 py-4 border-b border-dark-700">
-            <h3 className="text-lg font-semibold text-white">Media Type Breakdown</h3>
+      {/* Stats Row - Usage Stats, Media Type, and Server Usage */}
+      <div className="flex flex-wrap gap-4 items-start">
+        {/* Usage Statistics */}
+        <div className="flex flex-col gap-3">
+          <div className="bg-dark-800 rounded-xl border border-dark-700 p-4">
+            <div className="text-xs sm:text-sm text-gray-400 mb-1">Watch Time</div>
+            <div className="text-2xl sm:text-3xl font-bold text-white whitespace-nowrap">{formatDuration(stats.user.watch_duration || 0)}</div>
           </div>
-          <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {stats.mediaTypes.map((item) => (
-                <div key={item.media_type} className="bg-dark-700/50 rounded-lg p-4 border border-dark-600">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="p-2 bg-primary-500/10 rounded-lg text-primary-400">
-                      {getMediaIcon(item.media_type)}
+          <div className="bg-dark-800 rounded-xl border border-dark-700 p-4">
+            <div className="text-xs sm:text-sm text-gray-400 mb-1">Listen Time</div>
+            <div className="text-2xl sm:text-3xl font-bold text-white whitespace-nowrap">{formatDuration(stats.user.listen_duration || 0)}</div>
+          </div>
+        </div>
+
+        {/* Media Type Breakdown */}
+        {stats.mediaTypes && stats.mediaTypes.length > 0 && (
+          <div className="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden w-fit max-w-full">
+            <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-dark-700">
+              <h3 className="text-sm sm:text-base font-semibold text-white">Media Type Breakdown</h3>
+            </div>
+            <div className="p-3">
+              <div className="flex flex-wrap gap-2">
+                {stats.mediaTypes.map((item) => (
+                  <div key={item.media_type} className="bg-dark-700/50 rounded-lg p-2.5 border border-dark-600">
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="text-primary-400">
+                        {getMediaIcon(item.media_type)}
+                      </div>
+                      <span className="text-xs font-medium text-gray-300 capitalize">{item.media_type}</span>
                     </div>
-                    <span className="text-sm font-medium text-gray-300 capitalize">{item.media_type}</span>
+                    <div className="space-y-0.5">
+                      <div className="text-lg font-bold text-white whitespace-nowrap">{item.count} <span className="text-xs font-normal text-gray-400">plays</span></div>
+                      <div className="text-xs text-gray-400 whitespace-nowrap">{formatDuration(item.total_duration || 0)}</div>
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <div className="text-2xl font-bold text-white">{item.count} <span className="text-sm font-normal text-gray-400">plays</span></div>
-                    <div className="text-sm text-gray-400">{formatDuration(item.total_duration || 0)}</div>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Server Usage (if multiple servers) */}
-      {stats.serverBreakdown && stats.serverBreakdown.length > 1 && (
-        <div className="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden">
-          <div className="px-6 py-4 border-b border-dark-700">
-            <h3 className="text-lg font-semibold text-white">Server Usage</h3>
-          </div>
-          <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {stats.serverBreakdown.map((server) => (
-                <div key={server.server_type} className="bg-dark-700/50 rounded-lg p-4 border border-dark-600">
-                  <div className="flex items-center gap-2 mb-3">
-                    {getServerIcon(server.server_type)}
-                    <span className="text-sm font-medium text-gray-300 capitalize">{server.server_type}</span>
+        {/* Server Usage (if multiple servers) */}
+        {stats.serverBreakdown && stats.serverBreakdown.length > 1 && (
+          <div className="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden w-fit max-w-full">
+            <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-dark-700">
+              <h3 className="text-sm sm:text-base font-semibold text-white">Server Usage</h3>
+            </div>
+            <div className="p-3">
+              <div className="flex flex-wrap gap-2">
+                {stats.serverBreakdown.map((server) => (
+                  <div key={server.server_type} className="bg-dark-700/50 rounded-lg p-2.5 border border-dark-600">
+                    <div className="flex items-center gap-2 mb-1">
+                      {getServerIcon(server.server_type)}
+                      <span className="text-xs font-medium text-gray-300 capitalize">{server.server_type}</span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <div className="text-lg font-bold text-white whitespace-nowrap">{server.count} <span className="text-xs font-normal text-gray-400">plays</span></div>
+                      <div className="text-xs text-gray-400 whitespace-nowrap">{formatDuration(server.total_duration || 0)}</div>
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <div className="text-xl font-bold text-white">{server.count} <span className="text-sm font-normal text-gray-400">plays</span></div>
-                    <div className="text-sm text-gray-400">{formatDuration(server.total_duration || 0)}</div>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* Top Locations */}
+        {stats.topLocations && stats.topLocations.length > 0 && (
+          <div className="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden w-fit max-w-full">
+            <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-dark-700">
+              <h3 className="text-sm sm:text-base font-semibold text-white flex items-center gap-2">
+                <Globe className="w-4 h-4" />
+                Top Locations
+              </h3>
+            </div>
+            <div className="p-3">
+              <div className="flex flex-col gap-2">
+                {stats.topLocations.map((location, index) => (
+                  <div key={index} className="flex items-center justify-between gap-4 bg-dark-700/50 rounded-lg p-2.5 border border-dark-600">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <MapPin className="w-4 h-4 text-primary-400 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-xs font-medium text-white truncate">
+                          {location.city}{location.region ? `, ${location.region}` : ''}
+                        </div>
+                        <div className="text-xs text-gray-500">{location.country}</div>
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <div className="text-sm font-bold text-white whitespace-nowrap">{location.count}</div>
+                      <div className="text-xs text-gray-400">{formatDuration(location.total_duration || 0)}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Recent Activity */}
       {stats.recentWatches && stats.recentWatches.length > 0 && (
-        <div className="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden">
-          <div className="px-6 py-4 border-b border-dark-700">
-            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-              <Activity className="w-5 h-5 text-primary-400" />
-              Recent Activity
+        <div className="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden w-fit max-w-full">
+          <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-dark-700">
+            <h3 className="text-sm sm:text-base font-semibold text-white flex items-center gap-2">
+              <Activity className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary-400" />
+              Activity
             </h3>
           </div>
-          <div className="divide-y divide-dark-700">
-            {stats.recentWatches.map((watch, index) => (
-              <div key={index} className="p-4 hover:bg-dark-700/30 transition-colors">
-                <div className="flex gap-4">
+          <div className="p-3">
+            <div className="flex flex-wrap gap-2">
+              {stats.recentWatches.map((watch, index) => (
+                <div key={index} className="flex gap-2.5 p-2 bg-dark-700/30 rounded-lg border border-dark-600 hover:bg-dark-700/50 transition-colors w-[240px]">
                   {/* Thumbnail */}
-                  <div className="flex-shrink-0">
-                    {watch.thumb ? (
-                      <div className="relative overflow-hidden rounded">
-                        <img
-                          src={`/proxy/image?url=${encodeURIComponent(watch.thumb)}`}
-                          alt={watch.title}
-                          className="w-14 h-20 object-cover"
-                        />
-                        <div className="absolute bottom-1 right-1 p-0.5 bg-black/80 rounded">
-                          {getMediaIcon(watch.media_type)}
-                        </div>
+                  {watch.thumb ? (
+                    <div className="relative overflow-hidden rounded flex-shrink-0">
+                      <img
+                        src={`/proxy/image?url=${encodeURIComponent(watch.thumb)}`}
+                        alt={watch.title}
+                        className="w-9 h-12 sm:w-10 sm:h-14 object-cover"
+                      />
+                      <div className="absolute bottom-0.5 right-0.5 p-0.5 bg-black/80 rounded">
+                        <div className="w-2.5 h-2.5 sm:w-3 sm:h-3">{getMediaIcon(watch.media_type)}</div>
                       </div>
-                    ) : (
-                      <div className="w-14 h-20 bg-dark-600 rounded flex items-center justify-center text-gray-500">
-                        {getMediaIcon(watch.media_type)}
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <div className="w-9 h-12 sm:w-10 sm:h-14 bg-dark-600 rounded flex items-center justify-center text-gray-500 flex-shrink-0">
+                      <div className="w-3.5 h-3.5 sm:w-4 sm:h-4">{getMediaIcon(watch.media_type)}</div>
+                    </div>
+                  )}
 
                   {/* Content */}
                   <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-medium text-white truncate">{watch.title}</h4>
+                    <h4 className="text-xs font-medium text-white truncate">{watch.title}</h4>
                     {watch.parent_title && (
                       <p className="text-xs text-gray-400 truncate">{watch.parent_title}</p>
                     )}
 
                     {/* Meta Info */}
-                    <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-gray-500">
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {formatTimeAgo(watch.watched_at)}
-                      </span>
-                      <span>•</span>
-                      <span className="capitalize">{watch.media_type}</span>
-                      {watch.city && watch.region && (
-                        <>
-                          <span>•</span>
-                          <span className="flex items-center gap-1">
-                            <MapPin className="w-3 h-3" />
-                            {watch.city}, {watch.region}
-                          </span>
-                        </>
-                      )}
+                    <div className="flex items-center gap-1.5 mt-0.5 text-xs text-gray-500">
+                      <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                      <span className="truncate">{formatTimeAgo(watch.watched_at)}</span>
                     </div>
 
                     {/* Progress Bar */}
-                    <div className="mt-2">
-                      <div className="flex items-center justify-between text-xs mb-1">
-                        <span className="text-gray-400">Progress</span>
-                        <span className="text-white font-medium">{watch.percent_complete}%</span>
-                      </div>
-                      <div className="w-full h-1.5 bg-dark-600 rounded-full overflow-hidden">
+                    <div className="mt-1.5">
+                      <div className="w-full h-1 bg-dark-600 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-gradient-to-r from-primary-500 to-accent-500 rounded-full"
                           style={{ width: `${watch.percent_complete}%` }}
@@ -304,8 +319,8 @@ function UserDetails() {
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       )}
