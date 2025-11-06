@@ -25,5 +25,14 @@ export const createBackup = () => api.post('/database/backup');
 export const getBackups = () => api.get('/database/backups');
 export const restoreBackup = (filename) => api.post('/database/restore', { filename });
 export const deleteBackup = (filename) => api.delete(`/database/backups/${filename}`);
+export const uploadBackup = (file) => {
+  const formData = new FormData();
+  formData.append('backup', file);
+  return api.post('/database/backups/upload', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  });
+};
 
 export default api;

@@ -1,8 +1,38 @@
 import express from 'express';
 import db from '../database/init.js';
 import { embyService, audiobookshelfService } from '../services/monitor.js';
+import multer from 'multer';
 
 const router = express.Router();
+
+// Configure multer for backup file uploads
+const storage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    const path = await import('path');
+    const dbPath = process.env.DATABASE_PATH || './data/opsdec.db';
+    const dataDir = path.dirname(dbPath);
+    cb(null, dataDir);
+  },
+  filename: (req, file, cb) => {
+    // Generate filename with timestamp
+    cb(null, `opsdec_backup_${Date.now()}.db`);
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  fileFilter: (req, file, cb) => {
+    // Only accept .db files
+    if (file.originalname.endsWith('.db')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only .db files are allowed'));
+    }
+  },
+  limits: {
+    fileSize: 100 * 1024 * 1024 // 100MB limit
+  }
+});
 
 // Get current activity
 router.get('/activity', (req, res) => {
@@ -1500,6 +1530,73 @@ router.post('/database/backup', async (req, res) => {
     });
   } catch (error) {
     console.error('Database backup error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Upload a backup file
+router.post('/database/backups/upload', upload.single('backup'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'No file uploaded' });
+    }
+
+    const fs = await import('fs');
+    const path = await import('path');
+
+    // Validate that the uploaded file is a valid SQLite database
+    const Database = (await import('better-sqlite3')).default;
+    let uploadedDb;
+    try {
+      uploadedDb = new Database(req.file.path, { readonly: true });
+
+      // Check for required tables
+      const tables = uploadedDb.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
+      const tableNames = tables.map(t => t.name);
+      const requiredTables = ['servers', 'settings'];
+
+      for (const table of requiredTables) {
+        if (!tableNames.includes(table)) {
+          uploadedDb.close();
+          await fs.promises.unlink(req.file.path);
+          return res.status(400).json({
+            success: false,
+            error: `Invalid backup: missing required table '${table}'`
+          });
+        }
+      }
+
+      uploadedDb.close();
+    } catch (error) {
+      if (uploadedDb) uploadedDb.close();
+      await fs.promises.unlink(req.file.path);
+      return res.status(400).json({
+        success: false,
+        error: `Invalid database file: ${error.message}`
+      });
+    }
+
+    // Get file stats
+    const stats = await fs.promises.stat(req.file.path);
+
+    console.log(`Backup uploaded successfully: ${req.file.filename}`);
+
+    res.json({
+      success: true,
+      message: 'Backup uploaded successfully',
+      backup: {
+        filename: req.file.filename,
+        path: req.file.path,
+        size: stats.size,
+        created: stats.mtime
+      }
+    });
+  } catch (error) {
+    console.error('Backup upload error:', error);
+    if (req.file) {
+      const fs = await import('fs');
+      await fs.promises.unlink(req.file.path).catch(() => {});
+    }
     res.status(500).json({ success: false, error: error.message });
   }
 });

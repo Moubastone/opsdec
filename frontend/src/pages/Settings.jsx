@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, Save, Trash2, RefreshCw, Check, X, Server, AlertCircle, Film, Tv, Headphones, Globe, Users as UsersIcon, Database, Download, Upload, Archive } from 'lucide-react';
-import api, { getSettings, updateSetting, getUserMappings, createUserMapping, deleteUserMapping, getUsersByServer, purgeDatabase, createBackup, getBackups, restoreBackup, deleteBackup } from '../utils/api';
+import api, { getSettings, updateSetting, getUserMappings, createUserMapping, deleteUserMapping, getUsersByServer, purgeDatabase, createBackup, getBackups, restoreBackup, deleteBackup, uploadBackup } from '../utils/api';
 import { useTimezone } from '../contexts/TimezoneContext';
 
 export default function Settings() {
@@ -21,6 +21,7 @@ export default function Settings() {
   const [backups, setBackups] = useState([]);
   const [loadingBackups, setLoadingBackups] = useState(false);
   const [creatingBackup, setCreatingBackup] = useState(false);
+  const [uploadingBackup, setUploadingBackup] = useState(false);
   const [restoringBackup, setRestoringBackup] = useState(null);
 
   // User mappings state
@@ -339,6 +340,30 @@ export default function Settings() {
       alert(`Failed to create backup: ${error.response?.data?.error || error.message}`);
     } finally {
       setCreatingBackup(false);
+    }
+  };
+
+  const handleUploadBackup = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.db')) {
+      alert('Please select a valid database backup file (.db)');
+      event.target.value = '';
+      return;
+    }
+
+    setUploadingBackup(true);
+    try {
+      const response = await uploadBackup(file);
+      alert(`Backup uploaded successfully!\n\nFilename: ${response.data.backup.filename}\nSize: ${(response.data.backup.size / 1024 / 1024).toFixed(2)} MB`);
+      loadBackups();
+    } catch (error) {
+      console.error('Failed to upload backup:', error);
+      alert(`Failed to upload backup: ${error.response?.data?.error || error.message}`);
+    } finally {
+      setUploadingBackup(false);
+      event.target.value = '';
     }
   };
 
@@ -1135,18 +1160,31 @@ export default function Settings() {
             <Archive className="w-5 h-5 text-primary-500" />
             <h2 className="text-xl font-semibold text-gray-100">Database Management</h2>
           </div>
-          <button
-            onClick={handleCreateBackup}
-            disabled={creatingBackup}
-            className="px-4 py-2 bg-primary-600 hover:bg-primary-500 disabled:bg-primary-700 disabled:opacity-50 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
-          >
-            <Download className="w-4 h-4" />
-            {creatingBackup ? 'Creating...' : 'Create Backup'}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleCreateBackup}
+              disabled={creatingBackup}
+              className="px-4 py-2 bg-primary-600 hover:bg-primary-500 disabled:bg-primary-700 disabled:opacity-50 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" />
+              {creatingBackup ? 'Creating...' : 'Create Backup'}
+            </button>
+            <label className="px-4 py-2 bg-accent-600 hover:bg-accent-500 disabled:bg-accent-700 disabled:opacity-50 text-white rounded-lg font-medium transition-colors flex items-center gap-2 cursor-pointer">
+              <Upload className="w-4 h-4" />
+              {uploadingBackup ? 'Uploading...' : 'Upload Backup'}
+              <input
+                type="file"
+                accept=".db"
+                onChange={handleUploadBackup}
+                disabled={uploadingBackup}
+                className="hidden"
+              />
+            </label>
+          </div>
         </div>
 
         <p className="text-sm text-gray-400 mb-4">
-          Manage database backups. Create manual backups or restore from existing backup files.
+          Manage database backups. Create manual backups, upload existing backup files, or restore from available backups.
         </p>
 
         {loadingBackups ? (
