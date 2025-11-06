@@ -1403,14 +1403,38 @@ router.post('/database/purge', async (req, res) => {
     console.log('Verifying backup integrity...');
     const backupDb = new Database(backupPath, { readonly: true });
 
+    let backupInfo = {
+      servers: 0,
+      settings: 0,
+      users: 0,
+      history: 0
+    };
+
     try {
+      // Verify data that will be purged
       for (const table of tablesToPurge) {
         const backupCount = backupDb.prepare(`SELECT COUNT(*) as count FROM ${table}`).get().count;
         if (backupCount !== rowCounts[table]) {
           throw new Error(`Backup verification failed: ${table} has ${backupCount} rows, expected ${rowCounts[table]}`);
         }
       }
-      console.log('Backup verification successful');
+
+      // Verify critical data that should be preserved
+      backupInfo.servers = backupDb.prepare('SELECT COUNT(*) as count FROM servers').get().count;
+      backupInfo.settings = backupDb.prepare('SELECT COUNT(*) as count FROM settings').get().count;
+      backupInfo.users = backupDb.prepare('SELECT COUNT(*) as count FROM users').get().count;
+      backupInfo.history = backupDb.prepare('SELECT COUNT(*) as count FROM history').get().count;
+
+      console.log('Backup verification successful:', backupInfo);
+
+      // Double-check that servers and settings were backed up
+      if (backupInfo.servers === 0) {
+        throw new Error('CRITICAL: Backup has no server configurations! Aborting purge.');
+      }
+      if (backupInfo.settings === 0) {
+        throw new Error('CRITICAL: Backup has no settings! Aborting purge.');
+      }
+
     } finally {
       backupDb.close();
     }
@@ -1437,7 +1461,8 @@ router.post('/database/purge', async (req, res) => {
       message: 'User data purged successfully',
       backupPath: backupPath,
       rowsPurged: totalRows,
-      backupVerified: true
+      backupVerified: true,
+      backupInfo: backupInfo
     });
   } catch (error) {
     console.error('Database purge error:', error);
@@ -1570,17 +1595,27 @@ router.post('/database/restore', async (req, res) => {
         }
       }
 
-      // Check server configuration exists
-      const serverCount = backupDb.prepare('SELECT COUNT(*) as count FROM servers').get().count;
-      if (serverCount === 0) {
+      // Check server configuration exists and get detailed counts
+      const backupContents = {
+        servers: backupDb.prepare('SELECT COUNT(*) as count FROM servers').get().count,
+        settings: backupDb.prepare('SELECT COUNT(*) as count FROM settings').get().count,
+        users: backupDb.prepare('SELECT COUNT(*) as count FROM users').get().count,
+        history: backupDb.prepare('SELECT COUNT(*) as count FROM history').get().count,
+        sessions: backupDb.prepare('SELECT COUNT(*) as count FROM sessions').get().count
+      };
+
+      console.log('Backup contents:', backupContents);
+
+      if (backupContents.servers === 0) {
         backupDb.close();
         return res.status(400).json({
           success: false,
-          error: 'Backup appears to be empty (no server configuration found). This may be a backup created during purge. Please select a different backup.'
+          error: 'Backup appears to be empty (no server configuration found). This may be a backup created during purge. Please select a different backup.',
+          backupContents: backupContents
         });
       }
 
-      console.log(`Backup validation successful (${serverCount} servers configured)`);
+      console.log(`Backup validation successful (${backupContents.servers} servers, ${backupContents.users} users, ${backupContents.history} history records)`);
       backupDb.close();
     } catch (error) {
       if (backupDb) backupDb.close();
@@ -1612,7 +1647,8 @@ router.post('/database/restore', async (req, res) => {
     res.json({
       success: true,
       message: 'Database restored successfully',
-      safetyBackup: safetyBackupPath
+      safetyBackup: safetyBackupPath,
+      restored: backupContents
     });
   } catch (error) {
     console.error('Database restore error:', error);
