@@ -150,7 +150,7 @@ router.get('/users', (req, res) => {
       const watchStats = db.prepare(`
         SELECT
           COUNT(*) as watch_plays,
-          SUM(duration) as watch_duration
+          SUM(stream_duration) as watch_duration
         FROM history
         WHERE (${whereConditions}) AND media_type IN ('movie', 'episode')
       `).get(...whereParams);
@@ -159,7 +159,7 @@ router.get('/users', (req, res) => {
       const listenStats = db.prepare(`
         SELECT
           COUNT(*) as listen_plays,
-          SUM(duration) as listen_duration
+          SUM(stream_duration) as listen_duration
         FROM history
         WHERE (${whereConditions}) AND media_type IN ('audiobook', 'track', 'book')
       `).get(...whereParams);
@@ -168,7 +168,7 @@ router.get('/users', (req, res) => {
       const totalStats = db.prepare(`
         SELECT
           COUNT(*) as total_plays,
-          SUM(duration) as total_duration
+          SUM(stream_duration) as total_duration
         FROM history
         WHERE (${whereConditions})
       `).get(...whereParams);
@@ -178,7 +178,7 @@ router.get('/users', (req, res) => {
         SELECT
           server_type,
           COUNT(*) as plays,
-          SUM(duration) as duration
+          SUM(stream_duration) as duration
         FROM history
         WHERE (${whereConditions})
         GROUP BY server_type
@@ -246,31 +246,68 @@ router.get('/users/:userId/stats', (req, res) => {
     const userIds = mappedUsers.map(u => u.id);
     const userIdsPlaceholders = userIds.map(() => '?').join(',');
 
-    // Get play counts by media type (aggregated across all mapped users)
+    // Get play counts and total duration by media type (aggregated across all mapped users)
     const mediaTypes = db.prepare(`
-      SELECT media_type, COUNT(*) as count
+      SELECT
+        media_type,
+        COUNT(*) as count,
+        SUM(stream_duration) as total_duration
       FROM history
       WHERE user_id IN (${userIdsPlaceholders})
       GROUP BY media_type
     `).all(...userIds);
 
-    // Get recent watches (aggregated across all mapped users)
-    const recentWatches = db.prepare(`
-      SELECT * FROM history
-      WHERE user_id IN (${userIdsPlaceholders})
-      ORDER BY watched_at DESC
-      LIMIT 10
-    `).all(...userIds);
+    // Calculate total plays and duration
+    const totalPlays = mediaTypes.reduce((sum, mt) => sum + mt.count, 0);
+    const totalDuration = mediaTypes.reduce((sum, mt) => sum + (mt.total_duration || 0), 0);
 
-    // Get most watched (aggregated across all mapped users)
-    const mostWatched = db.prepare(`
-      SELECT title, parent_title, media_type, thumb, COUNT(*) as plays
+    // Calculate watch duration (movies + episodes) and listen duration (tracks + audiobooks)
+    const watchTypes = ['movie', 'episode'];
+    const listenTypes = ['track', 'audiobook'];
+
+    const watchDuration = mediaTypes
+      .filter(mt => watchTypes.includes(mt.media_type))
+      .reduce((sum, mt) => sum + (mt.total_duration || 0), 0);
+
+    const listenDuration = mediaTypes
+      .filter(mt => listenTypes.includes(mt.media_type))
+      .reduce((sum, mt) => sum + (mt.total_duration || 0), 0);
+
+    // Get recent watches - deduplicated by media_id, showing only the most recent play of each item
+    const recentWatches = db.prepare(`
+      SELECT h.*
+      FROM history h
+      INNER JOIN (
+        SELECT media_id, MAX(watched_at) as max_watched_at
+        FROM history
+        WHERE user_id IN (${userIdsPlaceholders})
+        GROUP BY media_id
+      ) latest ON h.media_id = latest.media_id AND h.watched_at = latest.max_watched_at
+      WHERE h.user_id IN (${userIdsPlaceholders})
+      ORDER BY h.watched_at DESC
+      LIMIT 10
+    `).all(...userIds, ...userIds);
+
+    // Get server breakdown stats
+    const serverBreakdown = db.prepare(`
+      SELECT
+        server_type,
+        COUNT(*) as count,
+        SUM(stream_duration) as total_duration
       FROM history
       WHERE user_id IN (${userIdsPlaceholders})
-      GROUP BY media_id
-      ORDER BY plays DESC
-      LIMIT 10
+      GROUP BY server_type
     `).all(...userIds);
+
+    // Check if this is a mapped user
+    const isMapped = mappedUsers.length > 1;
+    const serverTypes = isMapped ? [...new Set(mappedUsers.map(u => u.server_type))] : [user.server_type];
+
+    // Build mapped usernames array with server info
+    const mappedUsernames = mappedUsers.map(u => ({
+      username: u.username,
+      server_type: u.server_type
+    }));
 
     // Return user info with primary username
     const avatarInfo = getAvatarForPrimaryUser(primaryUsername);
@@ -282,7 +319,15 @@ router.get('/users/:userId/stats', (req, res) => {
       email: user.email,
       is_admin: user.is_admin,
       history_enabled: user.history_enabled,
-      last_seen: user.last_seen
+      last_seen: user.last_seen,
+      total_plays: totalPlays,
+      total_duration: totalDuration,
+      watch_duration: watchDuration,
+      listen_duration: listenDuration,
+      is_mapped: isMapped,
+      mapped_servers: mappedUsers.length,
+      server_types: serverTypes,
+      mapped_usernames: mappedUsernames
     };
 
     res.json({
@@ -291,7 +336,7 @@ router.get('/users/:userId/stats', (req, res) => {
         user: userInfo,
         mediaTypes,
         recentWatches,
-        mostWatched,
+        serverBreakdown,
       },
     });
   } catch (error) {
@@ -411,7 +456,7 @@ router.get('/stats/dashboard', (req, res) => {
       SELECT
         h.username,
         h.server_type,
-        SUM(COALESCE(h.stream_duration, CAST(h.duration * h.percent_complete / 100 AS INTEGER))) as total_duration
+        SUM(h.stream_duration) as total_duration
       FROM history h
       WHERE h.media_type IN ('movie', 'episode')
       GROUP BY h.username, h.server_type
@@ -451,7 +496,7 @@ router.get('/stats/dashboard', (req, res) => {
       SELECT
         h.username,
         h.server_type,
-        SUM(COALESCE(h.stream_duration, CAST(h.duration * h.percent_complete / 100 AS INTEGER))) as total_duration
+        SUM(h.stream_duration) as total_duration
       FROM history h
       WHERE h.media_type IN ('audiobook', 'track', 'book', 'music')
       GROUP BY h.username, h.server_type
