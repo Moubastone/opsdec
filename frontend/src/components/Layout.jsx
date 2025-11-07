@@ -149,20 +149,16 @@ function Layout({ children }) {
                       <div className="text-xs text-gray-400 mb-3 font-semibold">Statistics</div>
                       <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
                         <div>
-                          <div className="text-gray-400">Active Sessions</div>
-                          <div className="text-white font-semibold">{stats.activeSessions || 0}</div>
-                        </div>
-                        <div>
-                          <div className="text-gray-400">Total Plays</div>
-                          <div className="text-white font-semibold">{stats.totalPlays?.toLocaleString() || 0}</div>
-                        </div>
-                        <div>
                           <div className="text-gray-400">Total Users</div>
                           <div className="text-white font-semibold">{stats.totalUsers || 0}</div>
                         </div>
                         <div>
                           <div className="text-gray-400">Watch Time</div>
-                          <div className="text-white font-semibold">{formatDuration(stats.totalDuration || 0)}</div>
+                          <div className="text-white font-semibold">{formatDuration(stats.watchDuration || 0)}</div>
+                        </div>
+                        <div>
+                          <div className="text-gray-400">Listen Time</div>
+                          <div className="text-white font-semibold">{formatDuration(stats.listenDuration || 0)}</div>
                         </div>
                         <div>
                           <div className="text-gray-400">Monthly Avg</div>

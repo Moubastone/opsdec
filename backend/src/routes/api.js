@@ -429,6 +429,25 @@ router.get('/stats/dashboard', (req, res) => {
       WHERE state IN ('playing', 'paused')
     `).get();
 
+    // Calculate watch duration (movies + episodes) and listen duration (tracks + audiobooks + books + music)
+    const watchTypes = ['movie', 'episode'];
+    const listenTypes = ['track', 'audiobook', 'book', 'music'];
+
+    const watchDurationResult = db.prepare(`
+      SELECT SUM(h.stream_duration) as total
+      FROM history h
+      WHERE h.media_type IN ('movie', 'episode')
+    `).get();
+
+    const listenDurationResult = db.prepare(`
+      SELECT SUM(h.stream_duration) as total
+      FROM history h
+      WHERE h.media_type IN ('track', 'audiobook', 'book', 'music')
+    `).get();
+
+    const watchDuration = watchDurationResult?.total || 0;
+    const listenDuration = listenDurationResult?.total || 0;
+
     // Plays by day (last 30 days)
     const playsByDay = db.prepare(`
       SELECT
@@ -737,6 +756,8 @@ router.get('/stats/dashboard', (req, res) => {
         totalPlays: totalPlays.count,
         totalUsers: totalUsers.count,
         totalDuration: totalDuration.total || 0,
+        watchDuration,
+        listenDuration,
         activeSessions: activeSessions.count,
         monthlyAverage,
         weeklyAverage,
