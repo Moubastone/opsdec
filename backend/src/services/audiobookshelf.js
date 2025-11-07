@@ -38,6 +38,12 @@ class AudiobookshelfService {
     this.socketReconnectTimer = null;
     this.socketEventHandlers = [];
     this.socketConnected = false;
+
+    // Track session progress to detect active playback
+    // Map: sessionId -> { currentTime, lastChecked, lastProgressAt }
+    this.sessionProgressTracker = new Map();
+    // Consider a session inactive if no progress for 2 minutes
+    this.sessionInactivityThreshold = 2 * 60 * 1000;
   }
 
   async testConnection() {
@@ -221,28 +227,69 @@ class AudiobookshelfService {
     try {
       const sessions = await this.getPlaybackSessions();
       const activeStreams = [];
-
       const now = Date.now();
-      const fiveMinutesAgo = now - (5 * 60 * 1000); // 5 minutes ago
 
-      // For Audiobookshelf, filter for sessions updated recently
-      // Since we're now checking users with active playback first,
-      // we can use a tighter window
-      const activeSessions = Array.isArray(sessions)
-        ? sessions.filter(s => {
-            if (!s || !s.libraryItemId || s.currentTime === undefined) {
-              return false;
-            }
-            // If updatedAt is not present, include the session (assume it's active)
-            // Otherwise, check if it was updated within the last 5 minutes
-            if (!s.updatedAt) {
-              return true;
-            }
-            return s.updatedAt > fiveMinutesAgo;
-          })
-        : [];
+      // Filter for sessions that have made progress since last check
+      // This detects actual playback vs paused sessions
+      const activeSessions = [];
 
-      console.log(`Found ${activeSessions.length} active Audiobookshelf sessions out of ${sessions.length} total sessions (updated within last 5 minutes)`);
+      for (const session of sessions) {
+        if (!session || !session.id || !session.libraryItemId || session.currentTime === undefined) {
+          continue;
+        }
+
+        const sessionId = session.id;
+        const currentTime = session.currentTime;
+        const lastTracked = this.sessionProgressTracker.get(sessionId);
+
+        // First time seeing this session - track it but DON'T show as active yet
+        // Wait for next poll to see if progress is made
+        if (!lastTracked) {
+          this.sessionProgressTracker.set(sessionId, {
+            currentTime: currentTime,
+            lastChecked: now,
+            lastProgressAt: null  // No progress yet, just discovered
+          });
+          console.log(`📊 Tracking new Audiobookshelf session: ${sessionId} (${session.displayTitle || 'Unknown'}) at ${Math.floor(currentTime)}s`);
+          continue;  // Don't show as active on first discovery
+        }
+
+        // Check if progress has been made (currentTime has increased)
+        const progressMade = currentTime > lastTracked.currentTime;
+        const timeSinceProgress = now - (progressMade ? now : lastTracked.lastProgressAt);
+
+        // Update the tracker
+        this.sessionProgressTracker.set(sessionId, {
+          currentTime: currentTime,
+          lastChecked: now,
+          lastProgressAt: progressMade ? now : lastTracked.lastProgressAt
+        });
+
+        if (progressMade) {
+          const progressDelta = currentTime - lastTracked.currentTime;
+          console.log(`▶️  Active playback detected: ${session.displayTitle || 'Unknown'} (+${Math.floor(progressDelta)}s progress)`);
+          activeSessions.push(session);
+        } else if (timeSinceProgress < this.sessionInactivityThreshold) {
+          // No progress this check, but progress was seen recently - keep showing as active
+          const secondsSinceProgress = Math.floor(timeSinceProgress / 1000);
+          console.log(`⏯️  No progress update, but active (last progress ${secondsSinceProgress}s ago): ${session.displayTitle || 'Unknown'}`);
+          activeSessions.push(session);
+        } else {
+          // No progress for longer than threshold - mark as inactive
+          console.log(`⏸️  No progress for ${Math.floor(timeSinceProgress / 1000)}s: ${session.displayTitle || 'Unknown'} (paused or stopped)`);
+        }
+      }
+
+      // Clean up tracker for sessions that no longer exist
+      const currentSessionIds = new Set(sessions.map(s => s.id));
+      for (const [trackedId] of this.sessionProgressTracker) {
+        if (!currentSessionIds.has(trackedId)) {
+          console.log(`🧹 Removing stale session from tracker: ${trackedId}`);
+          this.sessionProgressTracker.delete(trackedId);
+        }
+      }
+
+      console.log(`Found ${activeSessions.length} active Audiobookshelf sessions out of ${sessions.length} total open sessions (detected by progress tracking)`);
 
       for (const session of activeSessions) {
         const activity = await this.parsePlaybackSession(session);
