@@ -106,6 +106,7 @@ export function initServices() {
           console.log(`✅ ${server.name} (Plex) initialized from database`);
         } else if (server.type === 'audiobookshelf') {
           service = new AudiobookshelfService(server.url, server.api_key);
+          service.setDatabase(db); // Pass database reference for cleanup operations
           audiobookshelfService = service;
           services.push({ name: server.name, service, type: 'audiobookshelf', id: server.id });
           console.log(`✅ ${server.name} (Audiobookshelf) initialized from database`);
@@ -434,17 +435,224 @@ function updateUserStats(userId, username, serverType, userThumb = null) {
   }
 }
 
+// Import history from Audiobookshelf listening sessions API
+async function importAudiobookshelfHistory(service, serverType) {
+  try {
+    const listeningSessions = await service.getListeningSessions();
+    const now = Math.floor(Date.now() / 1000);
+    const sevenDaysAgo = now - (7 * 24 * 60 * 60); // Only import sessions from last 7 days
+    let importedCount = 0;
+    let skippedCount = 0;
+
+    for (const session of listeningSessions) {
+      if (!session || !session.id || !session.userId || !session.libraryItemId) {
+        continue;
+      }
+
+      // Only import sessions from the last 7 days
+      const sessionTime = session.updatedAt ? Math.floor(session.updatedAt / 1000) : 0;
+      if (sessionTime < sevenDaysAgo) {
+        skippedCount++;
+        continue;
+      }
+
+      // Check if we've already imported this session
+      // Use media_id, user_id, and session updatedAt timestamp for deduplication
+      const existingHistory = db.prepare(`
+        SELECT id FROM history
+        WHERE media_id = ? AND user_id = ? AND server_type = ? AND watched_at = ?
+      `).get(session.libraryItemId, session.userId, serverType, sessionTime);
+
+      if (existingHistory) {
+        // Already imported this session
+        continue;
+      }
+
+      // Extract data from listening session
+      const metadata = session.mediaMetadata || {};
+      const title = metadata.title || session.displayTitle || 'Unknown Title';
+      const seriesName = metadata.series?.[0]?.name || null;
+      const duration = session.duration || 0;
+      const currentTime = session.currentTime || 0;
+      const percentComplete = duration ? Math.round((currentTime / duration) * 100) : 0;
+
+      // Use timeListening from the session as stream duration (actual time spent listening)
+      const streamDuration = session.timeListening || 0;
+
+      // Check if it should be added to history
+      if (!shouldAddToHistory(
+        title,
+        duration,
+        percentComplete,
+        session.userId,
+        streamDuration,
+        'audiobook'
+      )) {
+        continue;
+      }
+
+      // Add to history
+      try {
+        // Ensure user exists in database BEFORE inserting history
+        console.log(`Creating/updating user ${session.userId} (${session.username}) for Audiobookshelf`);
+        updateUserStats(session.userId, session.username, serverType, null);
+
+        // Verify user exists
+        const userCheck = db.prepare('SELECT id FROM users WHERE id = ?').get(session.userId);
+        if (!userCheck) {
+          console.error(`Failed to create user ${session.userId} - skipping history import for this session`);
+          continue;
+        }
+
+        const thumb = session.libraryItemId ? `${service.baseUrl}/api/items/${session.libraryItemId}/cover` : null;
+
+        db.prepare(`
+          INSERT INTO history (
+            session_id, server_type, user_id, username,
+            media_type, media_id, title, parent_title, grandparent_title,
+            watched_at, duration, percent_complete, thumb, stream_duration,
+            ip_address, city, region, country
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          null, // session_id - Audiobookshelf sessions aren't in the sessions table
+          serverType,
+          session.userId,
+          session.username,
+          'audiobook',
+          session.libraryItemId,
+          title,
+          seriesName,
+          null, // grandparent_title
+          sessionTime,
+          duration,
+          percentComplete,
+          thumb,
+          streamDuration,
+          null, // ip_address
+          null, // city
+          null, // region
+          null  // country
+        );
+
+        // Update user play count
+        db.prepare(`
+          UPDATE users
+          SET total_plays = total_plays + 1,
+              total_duration = total_duration + ?
+          WHERE id = ?
+        `).run(streamDuration, session.userId);
+
+        importedCount++;
+        console.log(`📚 Imported Audiobookshelf history: ${title} (${percentComplete}% - ${Math.floor(streamDuration / 60)}m)`);
+      } catch (error) {
+        console.error(`Error importing Audiobookshelf history for session ${session.id}:`, error.message, `User: ${session.userId} (${session.username})`);
+      }
+    }
+
+    if (importedCount > 0 || skippedCount > 0) {
+      console.log(`✅ Audiobookshelf history import: ${importedCount} new sessions imported, ${skippedCount} old sessions skipped (older than 7 days)`);
+    }
+  } catch (error) {
+    console.error('Error in importAudiobookshelfHistory:', error.message);
+  }
+}
+
 function stopInactiveSessions(activeSessionKeys) {
   const now = Math.floor(Date.now() / 1000);
+  const STALE_SESSION_TIMEOUT = 60; // 60 seconds without updates = stale
+  const PAUSED_SESSION_TIMEOUT = 30; // 30 seconds paused = auto-stop
+
+  // First, clean up stale paused sessions (paused for more than 30 seconds)
+  const stalePausedSessions = db.prepare(`
+    SELECT session_key, user_id, username, title, progress_percent, duration, server_type, updated_at
+    FROM sessions
+    WHERE state = 'paused'
+      AND server_type != 'audiobookshelf'
+      AND (? - updated_at) > ?
+  `).all(now, PAUSED_SESSION_TIMEOUT);
+
+  for (const session of stalePausedSessions) {
+    // Mark as stopped
+    db.prepare(`
+      UPDATE sessions
+      SET state = 'stopped',
+          stopped_at = ?,
+          updated_at = ?
+      WHERE session_key = ?
+    `).run(now, now, session.session_key);
+
+    console.log(`⏸️  Paused session timeout: ${session.username} - ${session.title} (${session.progress_percent}% / ${session.duration}s)`);
+
+    // Get session data to calculate stream duration
+    const sessionData = db.prepare('SELECT * FROM sessions WHERE session_key = ?').get(session.session_key);
+    const streamDuration = now - sessionData.started_at;
+
+    // Add to history if it meets criteria
+    if (shouldAddToHistory(session.title, session.duration, session.progress_percent, session.user_id, streamDuration, sessionData.media_type)) {
+      try {
+        const existingHistory = db.prepare(`
+          SELECT id FROM history
+          WHERE session_id = ? AND media_id = ?
+        `).get(sessionData.id, sessionData.media_id);
+
+        if (!existingHistory) {
+          db.prepare(`
+            INSERT INTO history (
+              session_id, server_type, user_id, username,
+              media_type, media_id, title, parent_title, grandparent_title,
+              watched_at, duration, percent_complete, thumb, stream_duration,
+              ip_address, city, region, country
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).run(
+            sessionData.id,
+            sessionData.server_type,
+            sessionData.user_id,
+            sessionData.username,
+            sessionData.media_type,
+            sessionData.media_id,
+            sessionData.title,
+            sessionData.parent_title,
+            sessionData.grandparent_title,
+            now,
+            sessionData.duration,
+            session.progress_percent,
+            sessionData.thumb,
+            streamDuration,
+            sessionData.ip_address,
+            sessionData.city,
+            sessionData.region,
+            sessionData.country
+          );
+
+          db.prepare(`
+            UPDATE users
+            SET total_plays = total_plays + 1,
+                total_duration = total_duration + ?
+            WHERE id = ?
+          `).run(streamDuration, session.user_id);
+
+          console.log(`   📝 Added to history: ${session.title}`);
+        }
+      } catch (error) {
+        console.error(`   Error adding to history: ${error.message}`);
+      }
+    }
+  }
 
   // Find sessions that are no longer active
+  // Exclude Audiobookshelf sessions - they will be handled by importAudiobookshelfHistory
   const activeSessions = db.prepare(`
-    SELECT session_key, user_id, username, title, progress_percent, duration
+    SELECT session_key, user_id, username, title, progress_percent, duration, server_type
     FROM sessions
     WHERE state != 'stopped'
   `).all();
 
   for (const session of activeSessions) {
+    // Skip Audiobookshelf sessions - history is pulled from their API instead
+    if (session.server_type === 'audiobookshelf') {
+      continue;
+    }
+
     if (!activeSessionKeys.has(session.session_key)) {
       // Session is no longer active, mark as stopped
       db.prepare(`
@@ -563,6 +771,23 @@ async function checkActivity(services) {
   }
 }
 
+// Separate function to import Audiobookshelf history on its own schedule
+async function checkAudiobookshelfHistory(services) {
+  try {
+    for (const { name, service, type } of services) {
+      if (type === 'audiobookshelf' && service.getListeningSessions) {
+        try {
+          await importAudiobookshelfHistory(service, type);
+        } catch (error) {
+          console.error(`Error importing Audiobookshelf history:`, error.message);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error in checkAudiobookshelfHistory:', error.message);
+  }
+}
+
 export function startActivityMonitor() {
   const services = initServices();
 
@@ -612,30 +837,28 @@ export function startActivityMonitor() {
     });
   }
 
-  // Set up Socket.io for Audiobookshelf if available
+  // For Audiobookshelf, import history from API every 5 minutes
+  // Active streams are checked every minute (same as other servers)
   if (audiobookshelfService) {
-    console.log('🔌 Setting up Audiobookshelf Socket.io for real-time updates...');
+    console.log('📚 Setting up Audiobookshelf history import (every 5 minutes)...');
 
-    // Connect to Socket.io
-    audiobookshelfService.connectSocket();
+    // Initial import
+    checkAudiobookshelfHistory(services);
 
-    // Register event handler for session updates
-    audiobookshelfService.onSocketEvent((event) => {
-      if (event.type === 'session_update' || event.type === 'session_started' ||
-          event.type === 'session_stopped' || event.type === 'session_progress') {
-        console.log('📨 Audiobookshelf Socket.io event triggered immediate session check');
-        // Immediately check activity when we get a Socket.io event
-        checkActivity(services);
-      }
+    // Schedule periodic history imports every 5 minutes
+    cron.schedule('*/5 * * * *', () => {
+      console.log('🔄 Running scheduled Audiobookshelf history import...');
+      checkAudiobookshelfHistory(services);
     });
   }
 
   // Initial check
   checkActivity(services);
 
-  // Schedule periodic checks and store the cron job
-  // This serves as a fallback when WebSocket disconnects or misses events
-  cronJob = cron.schedule(`*/${pollInterval} * * * * *`, () => {
+  // Schedule periodic checks every 60 seconds for all services (including Audiobookshelf)
+  // This allows us to see active Audiobookshelf streams in real-time
+  // Store the cron job so we can stop it when restarting
+  cronJob = cron.schedule('*/60 * * * * *', () => {
     checkActivity(services);
   });
 }
@@ -660,10 +883,7 @@ export function restartMonitoring() {
     console.log('   Disconnected Emby WebSocket');
   }
 
-  if (audiobookshelfService && audiobookshelfService.disconnectSocket) {
-    audiobookshelfService.disconnectSocket();
-    console.log('   Disconnected Audiobookshelf Socket.io');
-  }
+  // Note: Audiobookshelf doesn't use real-time connections - history is imported on a schedule
 
   // Clear existing services
   embyService = null;

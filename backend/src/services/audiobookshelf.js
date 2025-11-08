@@ -48,6 +48,9 @@ class AudiobookshelfService {
 
     // Track active sessions by sessionId (updated via Socket.io events)
     this.activeSessionIds = new Set();
+
+    // Database reference for cleanup operations
+    this.db = null;
   }
 
   async testConnection() {
@@ -227,101 +230,139 @@ class AudiobookshelfService {
     }
   }
 
+  async getListeningSessions() {
+    try {
+      // Get all users
+      const usersResponse = await this.client.get('/api/users');
+      const allSessions = [];
+
+      if (usersResponse.data.users) {
+        for (const user of usersResponse.data.users) {
+          try {
+            // Get listening sessions for each user
+            const sessionsResponse = await this.client.get(`/api/users/${user.id}/listening-sessions`);
+            const sessions = sessionsResponse.data.sessions || [];
+
+            // Add user info to each session
+            for (const session of sessions) {
+              session.username = user.username;
+              session.userId = user.id;
+            }
+
+            allSessions.push(...sessions);
+          } catch (error) {
+            console.error(`Error fetching listening sessions for user ${user.username}:`, error.message);
+          }
+        }
+      }
+
+      console.log(`Found ${allSessions.length} total Audiobookshelf listening sessions across all users`);
+      return allSessions;
+    } catch (error) {
+      console.error('Error fetching Audiobookshelf listening sessions:', error.message);
+      return [];
+    }
+  }
+
   async getActivePlaybackSessions() {
     try {
       const sessions = await this.getPlaybackSessions();
       const activeStreams = [];
       const now = Date.now();
 
-      // Filter for sessions that have made progress since last check
-      // This detects actual playback vs paused sessions
-      const activeSessions = [];
+      console.log(`📊 Analyzing ${sessions.length} open Audiobookshelf sessions...`);
+
+      // NEW APPROACH: Use updatedAt timestamp and playMethod as primary indicators
+      // Group sessions by user to find the most recently active one per user
+      const sessionsByUser = new Map();
 
       for (const session of sessions) {
         if (!session || !session.id || !session.libraryItemId || session.currentTime === undefined) {
           continue;
         }
 
-        const sessionId = session.id;
-        const currentTime = session.currentTime;
-        const lastTracked = this.sessionProgressTracker.get(sessionId);
+        const userId = session.userId;
+        const updatedAt = session.updatedAt ? new Date(session.updatedAt).getTime() : 0;
+        const playMethod = session.playMethod;
+        const mediaPlayer = session.mediaPlayer;
 
-        // First time seeing this session - track it but DON'T show as active yet
-        // Unless it was marked active by a Socket.io event
-        if (!lastTracked) {
-          const isActiveByEvent = this.activeSessionIds.has(sessionId);
-          this.sessionProgressTracker.set(sessionId, {
-            currentTime: currentTime,
-            lastChecked: now,
-            lastProgressAt: null,  // No progress yet, just discovered
-            lastEventAt: isActiveByEvent ? now : null
-          });
-          console.log(`📊 Tracking new Audiobookshelf session: ${sessionId} (${session.displayTitle || 'Unknown'}) at ${Math.floor(currentTime)}s`);
+        // Calculate how recent this session is
+        const ageMs = now - updatedAt;
+        const ageMinutes = Math.floor(ageMs / 1000 / 60);
+        const hasActivePlayer = playMethod !== null && playMethod !== undefined;
 
-          if (isActiveByEvent) {
-            console.log(`🔔 Session ${sessionId} active via Socket.io event`);
-            activeSessions.push(session);
-          }
+        console.log(`   ${session.displayTitle || 'Unknown'} (${session.user?.username || 'Unknown'})`);
+        console.log(`      updatedAt: ${ageMinutes}m ago | playMethod: ${playMethod ?? 'null'} | mediaPlayer: ${mediaPlayer || 'null'}`);
+
+        // Skip sessions that are too old AND don't have an active player
+        // If playMethod is set, keep it regardless of age (it means a player is open)
+        const MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes
+        if (ageMs > MAX_AGE_MS && !hasActivePlayer) {
+          console.log(`      ⏭️  Skipping: Too old (${ageMinutes}m) with no active player`);
           continue;
         }
 
-        // Check if progress has been made (currentTime has increased)
-        const progressMade = currentTime > lastTracked.currentTime;
+        // For each user, keep track of their sessions
+        if (!sessionsByUser.has(userId)) {
+          sessionsByUser.set(userId, []);
+        }
+        sessionsByUser.get(userId).push({
+          session,
+          updatedAt,
+          playMethod,
+          mediaPlayer,
+          ageMs,
+          hasActivePlayer
+        });
+      }
 
-        // Check Socket.io event activity
-        const hasRecentEvent = lastTracked.lastEventAt && (now - lastTracked.lastEventAt) < this.sessionInactivityThreshold;
-
-        // Calculate time since last activity (progress OR Socket.io event)
-        const lastActivityTime = Math.max(
-          progressMade ? now : (lastTracked.lastProgressAt || 0),
-          lastTracked.lastEventAt || 0
-        );
-        const timeSinceActivity = lastActivityTime > 0 ? (now - lastActivityTime) : this.sessionInactivityThreshold + 1;
-
-        // Update the tracker
-        this.sessionProgressTracker.set(sessionId, {
-          currentTime: currentTime,
-          lastChecked: now,
-          lastProgressAt: progressMade ? now : lastTracked.lastProgressAt,
-          lastEventAt: lastTracked.lastEventAt  // Preserve Socket.io event timestamp
+      // For each user, pick the MOST RECENTLY UPDATED session with an active player
+      const activeSessions = [];
+      for (const [userId, userSessions] of sessionsByUser) {
+        // Sort to prioritize:
+        // 1. Sessions with playMethod set (active player) first
+        // 2. Then by most recent updatedAt
+        userSessions.sort((a, b) => {
+          if (a.hasActivePlayer !== b.hasActivePlayer) {
+            return b.hasActivePlayer - a.hasActivePlayer; // Active players first
+          }
+          return b.updatedAt - a.updatedAt; // Most recent first
         });
 
-        if (progressMade) {
-          const progressDelta = currentTime - lastTracked.currentTime;
-          console.log(`▶️  Active playback detected: ${session.displayTitle || 'Unknown'} (+${Math.floor(progressDelta)}s progress)`);
-          activeSessions.push(session);
-        } else if (hasRecentEvent) {
-          const secondsSinceEvent = Math.floor((now - lastTracked.lastEventAt) / 1000);
-          console.log(`🔔 Active via Socket.io event (${secondsSinceEvent}s ago): ${session.displayTitle || 'Unknown'}`);
-          activeSessions.push(session);
-        } else if (timeSinceActivity < this.sessionInactivityThreshold) {
-          // No recent progress or events, but activity seen within threshold - keep showing as active
-          const secondsSinceActivity = Math.floor(timeSinceActivity / 1000);
-          console.log(`⏯️  No recent update, but active (last activity ${secondsSinceActivity}s ago): ${session.displayTitle || 'Unknown'}`);
-          activeSessions.push(session);
+        const mostRecentSession = userSessions[0]; // Take the first after sorting
+
+        // STRICT: Require BOTH playMethod set AND recent updatedAt
+        // playMethod indicates an app/device has the player open
+        // updatedAt indicates the session is actively being updated (not stale)
+        const STRICT_AGE_LIMIT = 2 * 60 * 1000; // 2 minutes - sessions older than this are considered inactive
+        const isRecentlyActive = mostRecentSession.ageMs < STRICT_AGE_LIMIT;
+
+        if (mostRecentSession.hasActivePlayer && isRecentlyActive) {
+          const ageMinutes = Math.floor(mostRecentSession.ageMs / 1000 / 60);
+          const ageSeconds = Math.floor((mostRecentSession.ageMs % 60000) / 1000);
+          console.log(`   ▶️  ACTIVE: ${mostRecentSession.session.displayTitle} - playMethod=${mostRecentSession.playMethod} (${ageMinutes}m ${ageSeconds}s old)`);
+          activeSessions.push(mostRecentSession.session);
         } else {
-          // No activity for longer than threshold - mark as inactive
-          console.log(`⏸️  No activity for ${Math.floor(timeSinceActivity / 1000)}s: ${session.displayTitle || 'Unknown'} (paused or stopped)`);
+          const ageMinutes = Math.floor(mostRecentSession.ageMs / 1000 / 60);
+          const ageSeconds = Math.floor((mostRecentSession.ageMs % 60000) / 1000);
+          const reason = !mostRecentSession.hasActivePlayer ? 'no active player' : `too old (${ageMinutes}m ${ageSeconds}s)`;
+          console.log(`   ⏸️  PAUSED: ${mostRecentSession.session.displayTitle} - ${reason}`);
         }
       }
 
-      // Clean up tracker for sessions that no longer exist
-      const currentSessionIds = new Set(sessions.map(s => s.id));
-      for (const [trackedId] of this.sessionProgressTracker) {
-        if (!currentSessionIds.has(trackedId)) {
-          console.log(`🧹 Removing stale session from tracker: ${trackedId}`);
-          this.sessionProgressTracker.delete(trackedId);
-          this.activeSessionIds.delete(trackedId);
-        }
-      }
+      console.log(`Found ${activeSessions.length} active Audiobookshelf sessions (based on updatedAt + playMethod)`);
 
-      console.log(`Found ${activeSessions.length} active Audiobookshelf sessions out of ${sessions.length} total open sessions (Socket.io + progress tracking)`);
-
+      // Convert to activity format
       for (const session of activeSessions) {
         const activity = await this.parsePlaybackSession(session);
         if (activity) {
           activeStreams.push(activity);
         }
+      }
+
+      // Cleanup stale sessions in database if db is available
+      if (this.db) {
+        this.cleanupStaleSessions(activeStreams);
       }
 
       return activeStreams;
@@ -466,11 +507,12 @@ class AudiobookshelfService {
         });
       });
 
-      // Generic catch-all for any events we might have missed
+      // Generic catch-all for ANY AND ALL events (with full debugging)
       this.socket.onAny((eventName, ...args) => {
-        if (!streamEvents.includes(eventName) &&
-            !['connect', 'disconnect', 'connect_error', 'reconnect'].includes(eventName)) {
-          console.log(`📨 Audiobookshelf Socket.io unknown event: ${eventName}`, args);
+        // Log ALL events except connection lifecycle ones
+        if (!['connect', 'disconnect', 'connect_error', 'reconnect', 'ping', 'pong'].includes(eventName)) {
+          console.log(`📨 Audiobookshelf Socket.io event received: ${eventName}`);
+          console.log(`   Event data:`, JSON.stringify(args, null, 2));
         }
       });
 
@@ -608,6 +650,58 @@ class AudiobookshelfService {
 
   isSocketConnected() {
     return this.socketConnected && this.socket && this.socket.connected;
+  }
+
+  // Set database reference for cleanup operations
+  setDatabase(db) {
+    this.db = db;
+  }
+
+  // Clean up stale sessions in the database
+  cleanupStaleSessions(activeStreams) {
+    if (!this.db) {
+      console.log('   ⚠️  Database not available for cleanup');
+      return;
+    }
+
+    try {
+      // Build a Set of active session keys for quick lookup
+      const activeSessionKeys = new Set(activeStreams.map(s => s.sessionKey));
+
+      // Get all Audiobookshelf sessions currently marked as playing/paused/buffering
+      const dbSessions = this.db.prepare(`
+        SELECT session_key, title, username
+        FROM sessions
+        WHERE server_type = 'audiobookshelf'
+          AND state IN ('playing', 'paused', 'buffering')
+      `).all();
+
+      console.log(`   🔍 Cleanup check: ${dbSessions.length} DB sessions, ${activeStreams.length} active API sessions`);
+
+      const now = Math.floor(Date.now() / 1000);
+      let cleanedCount = 0;
+
+      for (const dbSession of dbSessions) {
+        // If this session is not in the active list, mark it as stopped
+        if (!activeSessionKeys.has(dbSession.session_key)) {
+          this.db.prepare(`
+            UPDATE sessions
+            SET state = 'stopped',
+                stopped_at = ?
+            WHERE session_key = ? AND server_type = 'audiobookshelf'
+          `).run(now, dbSession.session_key);
+
+          cleanedCount++;
+          console.log(`   🧹 Cleaned up stale session: ${dbSession.title} (${dbSession.username})`);
+        }
+      }
+
+      if (cleanedCount > 0) {
+        console.log(`✅ Cleaned up ${cleanedCount} stale Audiobookshelf session(s)`);
+      }
+    } catch (error) {
+      console.error('Error cleaning up stale Audiobookshelf sessions:', error.message);
+    }
   }
 }
 

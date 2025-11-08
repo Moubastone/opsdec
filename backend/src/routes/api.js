@@ -46,6 +46,13 @@ router.get('/activity', (req, res) => {
       ORDER BY started_at DESC
     `).all();
 
+    // Prevent caching to ensure fresh session data
+    res.set({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+
     res.json({ success: true, data: sessions });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -603,31 +610,87 @@ router.get('/stats/dashboard', (req, res) => {
     // and then count distinct primary usernames in JavaScript
 
     const moviesRaw = db.prepare(`
-      SELECT title, parent_title, media_type, thumb, media_id, username, server_type
-      FROM history
-      WHERE media_type = 'movie'
+      SELECT
+        media_id,
+        title,
+        parent_title,
+        media_type,
+        thumb,
+        username,
+        server_type
+      FROM (
+        SELECT
+          media_id,
+          title,
+          parent_title,
+          media_type,
+          thumb,
+          username,
+          server_type,
+          ROW_NUMBER() OVER (PARTITION BY media_id, username, server_type ORDER BY watched_at DESC) as rn
+        FROM history
+        WHERE media_type = 'movie'
+      )
+      WHERE rn = 1
     `).all();
 
     const episodesRaw = db.prepare(`
-      SELECT grandparent_title as title, media_type, thumb, grandparent_title as media_id, username, server_type
-      FROM history
-      WHERE media_type = 'episode' AND grandparent_title IS NOT NULL
+      SELECT
+        media_id,
+        title,
+        media_type,
+        thumb,
+        username,
+        server_type
+      FROM (
+        SELECT
+          grandparent_title as media_id,
+          grandparent_title as title,
+          media_type,
+          thumb,
+          username,
+          server_type,
+          ROW_NUMBER() OVER (PARTITION BY grandparent_title, username, server_type ORDER BY watched_at DESC) as rn
+        FROM history
+        WHERE media_type = 'episode' AND grandparent_title IS NOT NULL
+      )
+      WHERE rn = 1
     `).all();
 
     const audiobooksRaw = db.prepare(`
-      SELECT title, parent_title, media_type, thumb, media_id, username, server_type
-      FROM history
-      WHERE media_type IN ('audiobook', 'track', 'book')
+      SELECT
+        media_id,
+        title,
+        parent_title,
+        media_type,
+        thumb,
+        username,
+        server_type
+      FROM (
+        SELECT
+          media_id,
+          title,
+          parent_title,
+          media_type,
+          thumb,
+          username,
+          server_type,
+          ROW_NUMBER() OVER (PARTITION BY media_id, username, server_type ORDER BY watched_at DESC) as rn
+        FROM history
+        WHERE media_type IN ('audiobook', 'track', 'book')
+      )
+      WHERE rn = 1
     `).all();
 
     // Helper function to count plays by unique mapped users
+    // Group by title to handle cases where the same media has different IDs
     const countMappedUserPlays = (items) => {
       const mediaMap = {};
 
       items.forEach(item => {
-        const mediaId = item.media_id;
-        if (!mediaMap[mediaId]) {
-          mediaMap[mediaId] = {
+        const title = item.title;
+        if (!mediaMap[title]) {
+          mediaMap[title] = {
             title: item.title,
             parent_title: item.parent_title,
             media_type: item.media_type,
@@ -639,7 +702,7 @@ router.get('/stats/dashboard', (req, res) => {
 
         // Apply user mapping to get primary username
         const primaryUsername = applyUserMapping(item.username, item.server_type);
-        mediaMap[mediaId].users.add(primaryUsername);
+        mediaMap[title].users.add(primaryUsername);
       });
 
       // Convert to array and add plays count
