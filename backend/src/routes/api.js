@@ -69,7 +69,26 @@ router.get('/history', (req, res) => {
     // Get all history entries
     let query = `
       SELECT
-        h.*,
+        h.id,
+        h.session_id,
+        h.server_type,
+        h.user_id,
+        h.username,
+        h.media_type,
+        h.media_id,
+        h.title,
+        h.parent_title,
+        h.grandparent_title,
+        h.watched_at,
+        CAST(h.duration AS INTEGER) as duration,
+        h.percent_complete,
+        h.thumb,
+        CAST(h.stream_duration AS INTEGER) as stream_duration,
+        h.ip_address,
+        h.location,
+        h.city,
+        h.region,
+        h.country,
         (SELECT thumb FROM users WHERE username = h.username AND server_type = h.server_type AND thumb IS NOT NULL LIMIT 1) as user_thumb,
         CAST(h.duration * h.percent_complete / 100 AS INTEGER) as session_duration
       FROM history h
@@ -187,7 +206,7 @@ router.get('/users', (req, res) => {
       const watchStats = db.prepare(`
         SELECT
           COUNT(*) as watch_plays,
-          SUM(stream_duration) as watch_duration
+          CAST(SUM(stream_duration) AS INTEGER) as watch_duration
         FROM history
         WHERE (${whereConditions}) AND media_type IN ('movie', 'episode')
       `).get(...whereParams);
@@ -196,7 +215,7 @@ router.get('/users', (req, res) => {
       const listenStats = db.prepare(`
         SELECT
           COUNT(*) as listen_plays,
-          SUM(stream_duration) as listen_duration
+          CAST(SUM(stream_duration) AS INTEGER) as listen_duration
         FROM history
         WHERE (${whereConditions}) AND media_type IN ('audiobook', 'track', 'book')
       `).get(...whereParams);
@@ -205,7 +224,7 @@ router.get('/users', (req, res) => {
       const totalStats = db.prepare(`
         SELECT
           COUNT(*) as total_plays,
-          SUM(stream_duration) as total_duration
+          CAST(SUM(stream_duration) AS INTEGER) as total_duration
         FROM history
         WHERE (${whereConditions})
       `).get(...whereParams);
@@ -215,7 +234,7 @@ router.get('/users', (req, res) => {
         SELECT
           server_type,
           COUNT(*) as plays,
-          SUM(stream_duration) as duration
+          CAST(SUM(stream_duration) AS INTEGER) as duration
         FROM history
         WHERE (${whereConditions})
         GROUP BY server_type
@@ -288,7 +307,7 @@ router.get('/users/:userId/stats', (req, res) => {
       SELECT
         media_type,
         COUNT(*) as count,
-        SUM(stream_duration) as total_duration
+        CAST(SUM(stream_duration) AS INTEGER) as total_duration
       FROM history
       WHERE user_id IN (${userIdsPlaceholders})
       GROUP BY media_type
@@ -330,7 +349,7 @@ router.get('/users/:userId/stats', (req, res) => {
       SELECT
         server_type,
         COUNT(*) as count,
-        SUM(stream_duration) as total_duration
+        CAST(SUM(stream_duration) AS INTEGER) as total_duration
       FROM history
       WHERE user_id IN (${userIdsPlaceholders})
       GROUP BY server_type
@@ -343,7 +362,7 @@ router.get('/users/:userId/stats', (req, res) => {
         region,
         country,
         COUNT(*) as count,
-        SUM(stream_duration) as total_duration
+        CAST(SUM(stream_duration) AS INTEGER) as total_duration
       FROM history
       WHERE user_id IN (${userIdsPlaceholders})
         AND city IS NOT NULL
@@ -530,7 +549,7 @@ router.get('/stats/dashboard', (req, res) => {
       SELECT
         h.username,
         h.server_type,
-        SUM(h.stream_duration) as total_duration
+        CAST(SUM(h.stream_duration) AS INTEGER) as total_duration
       FROM history h
       WHERE h.media_type IN ('movie', 'episode')
       GROUP BY h.username, h.server_type
@@ -570,7 +589,7 @@ router.get('/stats/dashboard', (req, res) => {
       SELECT
         h.username,
         h.server_type,
-        SUM(h.stream_duration) as total_duration
+        CAST(SUM(h.stream_duration) AS INTEGER) as total_duration
       FROM history h
       WHERE h.media_type IN ('audiobook', 'track', 'book', 'music')
       GROUP BY h.username, h.server_type

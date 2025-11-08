@@ -163,8 +163,8 @@ class AudiobookshelfService {
         progressPercent: session.duration
           ? Math.round((session.currentTime / session.duration) * 100)
           : 0,
-        duration: session.duration || null,
-        currentTime: session.currentTime || 0,
+        duration: session.duration ? Math.round(session.duration) : null,
+        currentTime: session.currentTime ? Math.round(session.currentTime) : 0,
         clientName: 'Audiobookshelf',
         deviceName: 'Web',
         platform: 'Audiobookshelf',
@@ -331,26 +331,26 @@ class AudiobookshelfService {
 
         const mostRecentSession = userSessions[0]; // Take the first after sorting
 
-        // STRICT: Require BOTH playMethod set AND recent updatedAt
-        // playMethod indicates an app/device has the player open
+        // RELAXED: Accept sessions with recent updatedAt, even if playMethod is null/unknown
+        // Some clients don't properly set playMethod but still update the session
         // updatedAt indicates the session is actively being updated (not stale)
         const STRICT_AGE_LIMIT = 2 * 60 * 1000; // 2 minutes - sessions older than this are considered inactive
         const isRecentlyActive = mostRecentSession.ageMs < STRICT_AGE_LIMIT;
 
-        if (mostRecentSession.hasActivePlayer && isRecentlyActive) {
+        if (isRecentlyActive) {
           const ageMinutes = Math.floor(mostRecentSession.ageMs / 1000 / 60);
           const ageSeconds = Math.floor((mostRecentSession.ageMs % 60000) / 1000);
-          console.log(`   ▶️  ACTIVE: ${mostRecentSession.session.displayTitle} - playMethod=${mostRecentSession.playMethod} (${ageMinutes}m ${ageSeconds}s old)`);
+          const playMethodInfo = mostRecentSession.playMethod ?? 'unknown';
+          console.log(`   ▶️  ACTIVE: ${mostRecentSession.session.displayTitle} - playMethod=${playMethodInfo} (${ageMinutes}m ${ageSeconds}s old)`);
           activeSessions.push(mostRecentSession.session);
         } else {
           const ageMinutes = Math.floor(mostRecentSession.ageMs / 1000 / 60);
           const ageSeconds = Math.floor((mostRecentSession.ageMs % 60000) / 1000);
-          const reason = !mostRecentSession.hasActivePlayer ? 'no active player' : `too old (${ageMinutes}m ${ageSeconds}s)`;
-          console.log(`   ⏸️  PAUSED: ${mostRecentSession.session.displayTitle} - ${reason}`);
+          console.log(`   ⏸️  PAUSED: ${mostRecentSession.session.displayTitle} - too old (${ageMinutes}m ${ageSeconds}s)`);
         }
       }
 
-      console.log(`Found ${activeSessions.length} active Audiobookshelf sessions (based on updatedAt + playMethod)`);
+      console.log(`Found ${activeSessions.length} active Audiobookshelf sessions (based on recent updatedAt)`);
 
       // Convert to activity format
       for (const session of activeSessions) {
@@ -421,8 +421,8 @@ class AudiobookshelfService {
         progressPercent: session.duration
           ? Math.round((session.currentTime / session.duration) * 100)
           : 0,
-        duration: session.duration || null,
-        currentTime: session.currentTime || 0,
+        duration: session.duration ? Math.round(session.duration) : null,
+        currentTime: session.currentTime ? Math.round(session.currentTime) : 0,
         clientName: session.deviceInfo?.clientName || 'Audiobookshelf',
         deviceName: session.deviceInfo?.deviceName || 'Unknown Device',
         platform: 'Audiobookshelf',
