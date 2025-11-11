@@ -65,6 +65,8 @@ function Layout({ children }) {
         return <img src="/logos/plex.svg" alt="Plex" className="w-3 h-3" />;
       case 'audiobookshelf':
         return <img src="/logos/audiobookshelf.svg" alt="Audiobookshelf" className="w-3 h-3" />;
+      case 'sapho':
+        return <img src="/logos/sapho.svg" alt="Sapho" className="w-4 h-4" />;
       default:
         return null;
     }
@@ -84,7 +86,7 @@ function Layout({ children }) {
               <img src="/logo-icon.svg" alt="OpsDec" className="w-6 h-6" />
               <h1 className="text-sm font-bold">
                 <span className="text-white">Ops</span>
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">Dec</span>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">Dec</span>
               </h1>
             </Link>
 
@@ -100,7 +102,8 @@ function Layout({ children }) {
                     <div className={`flex items-center ${
                       server.type === 'emby' ? 'text-green-400' :
                       server.type === 'plex' ? 'text-yellow-400' :
-                      server.type === 'audiobookshelf' ? 'text-blue-400' :
+                      server.type === 'audiobookshelf' ? 'text-amber-600' :
+                      server.type === 'sapho' ? 'text-blue-400' :
                       'text-gray-400'
                     }`}>
                       {getServerIcon(server.type)}

@@ -15,6 +15,8 @@ function Dashboard() {
         return <img src="/logos/plex.svg" alt="Plex" className={size} title="Plex" />;
       case 'audiobookshelf':
         return <img src="/logos/audiobookshelf.svg" alt="Audiobookshelf" className={size} title="Audiobookshelf" />;
+      case 'sapho':
+        return <img src="/logos/sapho.svg" alt="Sapho" className={size} title="Sapho" />;
       default:
         return null;
     }
@@ -118,11 +120,12 @@ function Dashboard() {
                     </div>
                     {/* Server label */}
                     <div className="flex items-center justify-center gap-1 text-xs font-semibold capitalize">
-                      {getServerIcon(session.server_type, 'w-3.5 h-3.5')}
+                      {getServerIcon(session.server_type, session.server_type === 'sapho' ? 'w-5 h-5' : 'w-3.5 h-3.5')}
                       <span className={
                         session.server_type === 'emby' ? 'text-green-400' :
                         session.server_type === 'plex' ? 'text-yellow-400' :
-                        session.server_type === 'audiobookshelf' ? 'text-blue-400' :
+                        session.server_type === 'audiobookshelf' ? 'text-amber-600' :
+                        session.server_type === 'sapho' ? 'text-blue-400' :
                         'text-gray-400'
                       }>
                         {session.server_type}

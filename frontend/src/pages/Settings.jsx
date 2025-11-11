@@ -485,7 +485,7 @@ export default function Settings() {
       emby: { name: 'Emby', color: 'bg-green-500/20 text-green-400' },
       plex: { name: 'Plex', color: 'bg-yellow-500/20 text-yellow-400' },
       audiobookshelf: { name: 'Audiobookshelf', color: 'bg-amber-500/20 text-amber-600' },
-      sapho: { name: 'Sapho', color: 'bg-teal-500/20 text-teal-400' }
+      sapho: { name: 'Sapho', color: 'bg-blue-500/20 text-blue-400' }
     };
     return labels[type] || { name: type, color: 'bg-gray-500/20 text-gray-400' };
   };
