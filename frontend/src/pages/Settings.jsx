@@ -499,7 +499,7 @@ export default function Settings() {
       case 'audiobookshelf':
         return <img src="/logos/audiobookshelf.svg" alt="Audiobookshelf" className="w-5 h-5" />;
       case 'sappho':
-        return <img src="/logos/sappho.svg" alt="Sappho" className="w-6 h-6" />;
+        return <img src="/logos/sappho.svg" alt="Sappho" className="w-5 h-5" />;
       default:
         return <Server className="w-5 h-5" />;
     }
@@ -522,17 +522,17 @@ export default function Settings() {
       </div>
 
       {/* Actions Bar */}
-      <div className="flex flex-wrap gap-3 mb-8">
+      <div className="flex flex-col sm:flex-row flex-wrap gap-3 mb-8">
         <button
           onClick={handleAdd}
-          className="px-6 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-lg font-medium transition-colors flex items-center gap-2 shadow-lg shadow-primary-500/20"
+          className="px-6 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 shadow-lg shadow-primary-500/20"
         >
           <Plus className="w-5 h-5" />
           Add Server
         </button>
         <button
           onClick={handleRestartMonitoring}
-          className="px-6 py-3 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-lg font-medium transition-colors flex items-center gap-2"
+          className="px-6 py-3 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
         >
           <RefreshCw className="w-5 h-5" />
           Restart Monitoring
@@ -660,12 +660,12 @@ export default function Settings() {
           <p className="text-gray-500">Add a server to start monitoring your media</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {servers.map((server) => {
             const typeInfo = getServerTypeLabel(server.type);
             return (
               <div key={server.id} className={`card ${server.from_env ? 'opacity-90' : ''}`}>
-                <div className="p-6 flex flex-col h-full">
+                <div className="p-4 sm:p-6 flex flex-col h-full">
                   {/* Header */}
                   <div className="mb-4">
                     <div className="flex items-center gap-3 mb-2">
@@ -727,11 +727,11 @@ export default function Settings() {
                   )}
 
                   {/* Action Buttons */}
-                  <div className="flex gap-2 mt-auto">
+                  <div className="flex flex-col sm:flex-row gap-2 mt-auto">
                     <button
                       onClick={() => handleTest(server.id)}
                       disabled={testing[server.id]}
-                      className="flex-1 px-4 py-2 bg-dark-700 hover:bg-dark-600 disabled:bg-dark-750 disabled:opacity-50 text-gray-300 rounded-lg font-medium transition-colors"
+                      className="flex-1 px-4 py-2 bg-dark-700 hover:bg-dark-600 disabled:bg-dark-750 disabled:opacity-50 text-gray-300 rounded-lg font-medium transition-colors text-sm"
                     >
                       {testing[server.id] ? 'Testing...' : 'Test'}
                     </button>
@@ -739,15 +739,16 @@ export default function Settings() {
                       <>
                         <button
                           onClick={() => handleEdit(server)}
-                          className="flex-1 px-4 py-2 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-lg font-medium transition-colors"
+                          className="flex-1 px-4 py-2 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-lg font-medium transition-colors text-sm"
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => handleDelete(server.id)}
-                          className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg font-medium transition-colors"
+                          className="sm:flex-none px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg font-medium transition-colors text-sm flex items-center justify-center gap-2"
                         >
-                          <Trash2 className="w-5 h-5" />
+                          <Trash2 className="w-4 h-4" />
+                          <span className="sm:hidden">Delete</span>
                         </button>
                       </>
                     )}
@@ -760,15 +761,15 @@ export default function Settings() {
       )}
 
       {/* User Mappings Section */}
-      <div className="bg-dark-800 rounded-lg p-6 border border-dark-700 mt-8">
-        <div className="flex items-center justify-between mb-6">
+      <div className="bg-dark-800 rounded-lg p-4 sm:p-6 border border-dark-700 mt-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
             <h2 className="text-xl font-semibold text-gray-100 mb-2">User Mappings</h2>
             <p className="text-sm text-gray-400">Create a primary user and select which username from each server maps to it</p>
           </div>
           <button
             onClick={handleAddMapping}
-            className="px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+            className="px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 sm:flex-none"
           >
             <Plus className="w-4 h-4" />
             Add User
@@ -1040,17 +1041,17 @@ export default function Settings() {
 
               return (
                 <div key={index} className="bg-dark-750 border border-dark-600 rounded-lg p-4 hover:border-dark-500 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4 flex-1">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="flex items-center gap-4 flex-1 min-w-0">
                       {/* Avatar */}
                       {avatarUrl ? (
                         <img
                           src={`/proxy/image?url=${encodeURIComponent(avatarUrl)}`}
                           alt={mapping.primary_username}
-                          className="w-12 h-12 rounded-full object-cover"
+                          className="w-12 h-12 rounded-full object-cover flex-shrink-0"
                         />
                       ) : (
-                        <div className="w-12 h-12 rounded-full bg-primary-600 flex items-center justify-center">
+                        <div className="w-12 h-12 rounded-full bg-primary-600 flex items-center justify-center flex-shrink-0">
                           <span className="text-white font-semibold text-lg">
                             {mapping.primary_username.charAt(0).toUpperCase()}
                           </span>
@@ -1058,33 +1059,33 @@ export default function Settings() {
                       )}
 
                       {/* User info */}
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <h4 className="text-white font-semibold mb-2">{mapping.primary_username}</h4>
-                        <div className="flex flex-wrap gap-3">
+                        <div className="flex flex-wrap gap-2">
                           {/* Plex */}
                           {mapping.mappings.plex && (
-                            <div className="flex items-center gap-2 px-2 py-1 bg-dark-700 rounded text-xs">
+                            <div className="flex items-center gap-1.5 px-2 py-1 bg-dark-700 rounded text-xs">
                               {getServerIcon('plex')}
                               <span className="text-gray-300">{mapping.mappings.plex}</span>
                             </div>
                           )}
                           {/* Emby */}
                           {mapping.mappings.emby && (
-                            <div className="flex items-center gap-2 px-2 py-1 bg-dark-700 rounded text-xs">
+                            <div className="flex items-center gap-1.5 px-2 py-1 bg-dark-700 rounded text-xs">
                               {getServerIcon('emby')}
                               <span className="text-gray-300">{mapping.mappings.emby}</span>
                             </div>
                           )}
                           {/* Audiobookshelf */}
                           {mapping.mappings.audiobookshelf && (
-                            <div className="flex items-center gap-2 px-2 py-1 bg-dark-700 rounded text-xs">
+                            <div className="flex items-center gap-1.5 px-2 py-1 bg-dark-700 rounded text-xs">
                               {getServerIcon('audiobookshelf')}
                               <span className="text-gray-300">{mapping.mappings.audiobookshelf}</span>
                             </div>
                           )}
                           {/* Sappho */}
                           {mapping.mappings.sappho && (
-                            <div className="flex items-center gap-2 px-2 py-1 bg-dark-700 rounded text-xs">
+                            <div className="flex items-center gap-1.5 px-2 py-1 bg-dark-700 rounded text-xs">
                               {getServerIcon('sappho')}
                               <span className="text-gray-300">{mapping.mappings.sappho}</span>
                             </div>
@@ -1097,19 +1098,19 @@ export default function Settings() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex gap-2 ml-4">
+                    <div className="flex gap-2">
                       <button
                         onClick={() => handleEditMapping(mapping)}
-                        className="px-3 py-1.5 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-lg font-medium transition-colors text-sm"
+                        className="flex-1 sm:flex-none px-3 py-1.5 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-lg font-medium transition-colors text-sm"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleDeleteMapping(mapping.primary_username)}
-                        className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg font-medium transition-colors inline-flex items-center gap-1 text-sm"
+                        className="flex-1 sm:flex-none px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg font-medium transition-colors inline-flex items-center justify-center gap-1 text-sm"
                       >
                         <Trash2 className="w-4 h-4" />
-                        Delete
+                        <span className="sm:hidden">Delete</span>
                       </button>
                     </div>
                   </div>
@@ -1121,7 +1122,7 @@ export default function Settings() {
       </div>
 
       {/* Application Settings */}
-      <div className="bg-dark-800 rounded-lg p-6 border border-dark-700 mt-6">
+      <div className="bg-dark-800 rounded-lg p-4 sm:p-6 border border-dark-700 mt-6">
         <h2 className="text-xl font-semibold text-gray-100 mb-6">Application Settings</h2>
 
         <div className="space-y-4">
@@ -1212,22 +1213,22 @@ export default function Settings() {
       </div>
 
       {/* Database Management */}
-      <div className="bg-dark-800 rounded-lg p-6 mt-6">
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-dark-800 rounded-lg p-4 sm:p-6 mt-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
           <div className="flex items-center gap-2">
             <Archive className="w-5 h-5 text-primary-500" />
             <h2 className="text-xl font-semibold text-gray-100">Database Management</h2>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <button
               onClick={handleCreateBackup}
               disabled={creatingBackup}
-              className="px-4 py-2 bg-primary-600 hover:bg-primary-500 disabled:bg-primary-700 disabled:opacity-50 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+              className="px-4 py-2 bg-primary-600 hover:bg-primary-500 disabled:bg-primary-700 disabled:opacity-50 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 text-sm"
             >
               <Download className="w-4 h-4" />
               {creatingBackup ? 'Creating...' : 'Create Backup'}
             </button>
-            <label className="px-4 py-2 bg-accent-600 hover:bg-accent-500 disabled:bg-accent-700 disabled:opacity-50 text-white rounded-lg font-medium transition-colors flex items-center gap-2 cursor-pointer">
+            <label className="px-4 py-2 bg-accent-600 hover:bg-accent-500 disabled:bg-accent-700 disabled:opacity-50 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer text-sm">
               <Upload className="w-4 h-4" />
               {uploadingBackup ? 'Uploading...' : 'Upload Backup'}
               <input
@@ -1256,14 +1257,14 @@ export default function Settings() {
             {backups.map((backup) => (
               <div
                 key={backup.filename}
-                className="bg-dark-750 border border-dark-700 rounded-lg p-4 flex items-center justify-between"
+                className="bg-dark-750 border border-dark-700 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
               >
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <Database className="w-4 h-4 text-primary-400" />
-                    <span className="font-medium text-gray-200">{backup.filename}</span>
+                    <Database className="w-4 h-4 text-primary-400 flex-shrink-0" />
+                    <span className="font-medium text-gray-200 truncate">{backup.filename}</span>
                   </div>
-                  <div className="text-xs text-gray-500 space-x-4">
+                  <div className="text-xs text-gray-500 flex flex-wrap gap-x-4 gap-y-1">
                     <span>Created: {formatBackupDate(backup.created)}</span>
                     <span>Size: {formatFileSize(backup.size)}</span>
                   </div>
@@ -1272,7 +1273,7 @@ export default function Settings() {
                   <button
                     onClick={() => handleRestoreBackup(backup.filename)}
                     disabled={restoringBackup === backup.filename}
-                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-700 disabled:opacity-50 text-white rounded text-sm font-medium transition-colors flex items-center gap-1"
+                    className="flex-1 sm:flex-none px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-700 disabled:opacity-50 text-white rounded text-xs sm:text-sm font-medium transition-colors flex items-center justify-center gap-1"
                   >
                     <Upload className="w-3.5 h-3.5" />
                     {restoringBackup === backup.filename ? 'Restoring...' : 'Restore'}
@@ -1280,7 +1281,7 @@ export default function Settings() {
                   <a
                     href={`/api/database/backups/${backup.filename}/download`}
                     download={backup.filename}
-                    className="px-3 py-1.5 bg-primary-600 hover:bg-primary-500 text-white rounded text-sm font-medium transition-colors flex items-center gap-1"
+                    className="flex-1 sm:flex-none px-3 py-1.5 bg-primary-600 hover:bg-primary-500 text-white rounded text-xs sm:text-sm font-medium transition-colors flex items-center justify-center gap-1"
                   >
                     <Download className="w-3.5 h-3.5" />
                     Download
@@ -1288,10 +1289,10 @@ export default function Settings() {
                   <button
                     onClick={() => handleDeleteBackup(backup.filename)}
                     disabled={restoringBackup === backup.filename}
-                    className="px-3 py-1.5 bg-dark-600 hover:bg-dark-500 disabled:opacity-50 text-gray-300 rounded text-sm font-medium transition-colors flex items-center gap-1"
+                    className="sm:flex-none px-3 py-1.5 bg-dark-600 hover:bg-dark-500 disabled:opacity-50 text-gray-300 rounded text-xs sm:text-sm font-medium transition-colors flex items-center justify-center gap-1"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
-                    Delete
+                    <span className="sm:hidden">Delete</span>
                   </button>
                 </div>
               </div>
@@ -1301,7 +1302,7 @@ export default function Settings() {
       </div>
 
       {/* Danger Zone */}
-      <div className="bg-dark-800 rounded-lg p-6 border border-red-900/50 mt-6">
+      <div className="bg-dark-800 rounded-lg p-4 sm:p-6 border border-red-900/50 mt-6">
         <div className="flex items-center gap-2 mb-4">
           <AlertCircle className="w-5 h-5 text-red-500" />
           <h2 className="text-xl font-semibold text-red-400">Danger Zone</h2>
@@ -1309,7 +1310,7 @@ export default function Settings() {
 
         <div className="space-y-4">
           <div className="bg-dark-750/50 border border-red-900/30 rounded-lg p-4">
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-gray-100 mb-2 flex items-center gap-2">
                   <Database className="w-5 h-5 text-red-400" />
@@ -1328,7 +1329,7 @@ export default function Settings() {
               <button
                 onClick={handlePurgeDatabase}
                 disabled={purgingDatabase}
-                className="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:bg-red-700 disabled:opacity-50 text-white rounded-lg font-medium transition-colors flex items-center gap-2 whitespace-nowrap"
+                className="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:bg-red-700 disabled:opacity-50 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 whitespace-nowrap text-sm sm:flex-none"
               >
                 <Database className="w-4 h-4" />
                 {purgingDatabase ? 'Purging...' : 'Purge Database'}
