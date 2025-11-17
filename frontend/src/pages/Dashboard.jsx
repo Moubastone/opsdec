@@ -97,7 +97,7 @@ function Dashboard() {
             {activity.map((session) => (
               <div
                 key={session.id}
-                className="card hover:border-primary-500 transition-colors"
+                className={`card hover:border-primary-500 transition-colors ${session.state === 'playing' ? 'streaming-active' : ''}`}
               >
                 <div className="flex p-4 gap-4">
                   {/* Thumbnail and Server Label */}
@@ -269,10 +269,10 @@ function Dashboard() {
 
       {/* Top Users and Popular - Grid layout */}
       {(stats.topWatchers?.length > 0 || stats.topListeners?.length > 0 || stats.mostWatchedMovies?.length > 0 || stats.mostWatchedEpisodes?.length > 0 || stats.mostWatchedAudiobooks?.length > 0 || stats.topLocations?.length > 0) && (
-        <div className="flex flex-wrap gap-3">
+        <div className="flex gap-3 w-full">
           {/* Top Watchers */}
           {stats.topWatchers?.length > 0 && (
-            <div className="card min-w-fit">
+            <div className="card flex-1 min-w-0">
               <div className="card-header">
                 <h3 className="card-title text-center">Top Watchers</h3>
               </div>
@@ -312,7 +312,7 @@ function Dashboard() {
           )}
           {/* Top Listeners */}
           {stats.topListeners?.length > 0 && (
-            <div className="card min-w-fit">
+            <div className="card flex-1 min-w-0">
               <div className="card-header">
                 <h3 className="card-title text-center">Top Listeners</h3>
               </div>
@@ -352,7 +352,7 @@ function Dashboard() {
           )}
           {/* Popular Movies */}
           {stats.mostWatchedMovies?.length > 0 && (
-            <div className="card min-w-fit">
+            <div className="card flex-1 min-w-0">
               <div className="card-header">
                 <h3 className="card-title text-center">Popular Movies</h3>
               </div>
@@ -386,8 +386,10 @@ function Dashboard() {
                             )}
                           </div>
                           {/* Content */}
-                          <div className="flex-1">
-                            <div className="text-white text-xs leading-tight" style={{ wordBreak: 'break-word', overflowWrap: 'break-word', whiteSpace: 'normal' }}>{item.title}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-white text-xs leading-tight truncate" title={item.title}>
+                              {item.title}
+                            </div>
                             <div className="text-xs text-gray-500">
                               {item.plays} {item.plays === 1 ? 'user' : 'users'}
                             </div>
@@ -442,7 +444,7 @@ function Dashboard() {
 
           {/* Popular TV Shows */}
           {stats.mostWatchedEpisodes?.length > 0 && (
-            <div className="card" style={{ width: '300px', maxWidth: '100%' }}>
+            <div className="card flex-1 min-w-0">
               <div className="card-header">
                 <h3 className="card-title text-center">Popular Shows</h3>
               </div>
@@ -476,8 +478,10 @@ function Dashboard() {
                             )}
                           </div>
                           {/* Content */}
-                          <div className="flex-1">
-                            <div className="text-white text-xs leading-tight" style={{ wordBreak: 'break-word', overflowWrap: 'break-word', whiteSpace: 'normal' }}>{item.title}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-white text-xs leading-tight truncate" title={item.title}>
+                              {item.title}
+                            </div>
                             <div className="text-xs text-gray-500">
                               {item.plays} {item.plays === 1 ? 'user' : 'users'}
                             </div>
@@ -532,7 +536,7 @@ function Dashboard() {
 
           {/* Popular Books */}
           {stats.mostWatchedAudiobooks?.length > 0 && (
-            <div className="card min-w-fit">
+            <div className="card flex-1 min-w-0">
               <div className="card-header">
                 <h3 className="card-title text-center">Popular Books</h3>
               </div>
@@ -566,8 +570,10 @@ function Dashboard() {
                             )}
                           </div>
                           {/* Content */}
-                          <div className="flex-1">
-                            <div className="text-white text-xs leading-tight" style={{ wordBreak: 'break-word', overflowWrap: 'break-word', whiteSpace: 'normal' }}>{item.title}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-white text-xs leading-tight truncate" title={item.title}>
+                              {item.title}
+                            </div>
                             <div className="text-xs text-gray-500">
                               {item.plays} {item.plays === 1 ? 'user' : 'users'}
                             </div>
@@ -622,7 +628,7 @@ function Dashboard() {
 
           {/* Top Locations */}
           {stats.topLocations?.length > 0 && (
-            <div className="card min-w-fit">
+            <div className="card flex-1 min-w-0">
               <div className="card-header">
                 <h3 className="card-title text-center">Top Locations</h3>
               </div>

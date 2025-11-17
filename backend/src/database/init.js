@@ -44,6 +44,8 @@ export function initDatabase() {
       progress_percent INTEGER DEFAULT 0,
       duration INTEGER, -- in seconds
       current_time INTEGER DEFAULT 0, -- current playback position in seconds
+      playback_time INTEGER DEFAULT 0, -- actual playback time in seconds (excludes pauses)
+      last_position_update INTEGER, -- timestamp of last position update
       bitrate TEXT, -- bitrate in Mbps
       transcoding INTEGER DEFAULT 0, -- boolean: is transcoding
       video_codec TEXT,
@@ -222,6 +224,16 @@ export function initDatabase() {
     if (!columnNames.includes('user_thumb')) {
       console.log('🔧 Adding user_thumb column...');
       db.exec('ALTER TABLE sessions ADD COLUMN user_thumb TEXT');
+    }
+
+    if (!columnNames.includes('playback_time')) {
+      console.log('🔧 Adding playback_time column...');
+      db.exec('ALTER TABLE sessions ADD COLUMN playback_time INTEGER DEFAULT 0');
+    }
+
+    if (!columnNames.includes('last_position_update')) {
+      console.log('🔧 Adding last_position_update column...');
+      db.exec('ALTER TABLE sessions ADD COLUMN last_position_update INTEGER');
     }
 
     // Add history_enabled column to users table if it doesn't exist

@@ -226,11 +226,52 @@ async function updateSession(activity, serverType) {
   }
 
   // Check if session exists
-  const existing = db.prepare('SELECT * FROM sessions WHERE session_key = ?').get(activity.sessionKey);
+  let existing = db.prepare('SELECT * FROM sessions WHERE session_key = ?').get(activity.sessionKey);
 
   if (existing) {
+    // If session was already stopped (e.g., paused timeout) AND media hasn't changed AND activity is stopped or paused, ignore further updates
+    // (paused updates are just the client still reporting the session that we already stopped due to timeout)
+    if (existing.state === 'stopped' && existing.stopped_at && existing.media_id === activity.mediaId && (activity.state === 'stopped' || activity.state === 'paused')) {
+      console.log(`⏹️  Ignoring update for stopped session: ${existing.title}`);
+      return;
+    }
+
+    // If session was stopped but now resumed with same media (playing or buffering), reset it as a new session
+    // This prevents accumulating playback time across multiple viewing sessions
+    // Note: Don't resume if state is 'paused' - that's just the client still reporting the stopped session
+    if (existing.state === 'stopped' && existing.stopped_at && existing.media_id === activity.mediaId && (activity.state === 'playing' || activity.state === 'buffering')) {
+      console.log(`▶️  Resuming stopped session as new session: ${existing.title}`);
+      // Reset the session (history was already created when it stopped)
+      // Update it to look like a fresh new session starting now
+      const lastPositionUpdate = activity.state === 'playing' ? now : null;
+
+      db.prepare(`
+        UPDATE sessions
+        SET state = ?,
+            started_at = ?,
+            stopped_at = NULL,
+            playback_time = 0,
+            last_position_update = ?,
+            progress_percent = ?,
+            current_time = ?,
+            paused_counter = 0,
+            updated_at = ?
+        WHERE session_key = ?
+      `).run(
+        activity.state,
+        now,
+        lastPositionUpdate,
+        activity.progressPercent,
+        activity.currentTime || 0,
+        now,
+        activity.sessionKey
+      );
+
+      console.log(`📺 Session reset: ${activity.username} resumed ${activity.title}`);
+      return;
+    }
     // Check if media changed (new episode/movie in same session)
-    if (existing.media_id !== activity.mediaId) {
+    else if (existing.media_id !== activity.mediaId) {
       // Media changed, stop old session and create new one
       console.log(`🔄 Media changed in session: ${existing.title} -> ${activity.title}`);
 
@@ -238,8 +279,8 @@ async function updateSession(activity, serverType) {
       const stopNow = now;
       const oldSessionId = existing.id;
 
-      // Calculate stream duration: how long they actually watched this specific item
-      const streamDuration = stopNow - existing.started_at;
+      // Calculate stream duration: use playback_time (actual watch time, not wall-clock time)
+      const streamDuration = existing.playback_time || (existing.current_time || 0);
 
       // Add old session to history if it meets criteria
       if (shouldAddToHistory(existing.title, existing.duration, existing.progress_percent, existing.user_id, streamDuration, existing.media_type)) {
@@ -286,6 +327,10 @@ async function updateSession(activity, serverType) {
       }
 
       // Update the session with new media info
+      // Reset playback_time to 0 for new media
+      const playbackTime = 0;
+      const lastPositionUpdate = activity.state === 'playing' ? now : null;
+
       db.prepare(`
         UPDATE sessions
         SET media_type = ?,
@@ -303,6 +348,8 @@ async function updateSession(activity, serverType) {
             progress_percent = ?,
             duration = ?,
             current_time = ?,
+            playback_time = ?,
+            last_position_update = ?,
             bitrate = ?,
             transcoding = ?,
             video_codec = ?,
@@ -333,6 +380,8 @@ async function updateSession(activity, serverType) {
         activity.progressPercent,
         activity.duration,
         activity.currentTime || 0,
+        playbackTime,
+        lastPositionUpdate,
         activity.bitrate || null,
         activity.transcoding ? 1 : 0,
         activity.videoCodec || null,
@@ -352,18 +401,29 @@ async function updateSession(activity, serverType) {
       console.log(`📺 Session updated: ${activity.username} now watching ${activity.title} (${serverType})`);
     } else {
       // Same media, just update progress and stream info
+      // Calculate playback_time based on elapsed time while playing
+      let playbackTime = existing.playback_time || 0;
+
+      // If currently playing and was playing before, add elapsed time
+      if (activity.state === 'playing' && existing.state === 'playing' && existing.last_position_update) {
+        const elapsedSinceLastUpdate = now - existing.last_position_update;
+        playbackTime += elapsedSinceLastUpdate;
+      }
+
       db.prepare(`
         UPDATE sessions
         SET state = ?,
             progress_percent = ?,
             current_time = ?,
+            playback_time = ?,
+            last_position_update = CASE WHEN ? = 'playing' THEN ? ELSE last_position_update END,
             bitrate = ?,
             transcoding = ?,
             video_codec = ?,
             audio_codec = ?,
             container = ?,
             resolution = ?,
-            updated_at = ?,
+            updated_at = CASE WHEN ? != 'paused' THEN ? ELSE updated_at END,
             stopped_at = CASE WHEN ? = 'stopped' THEN ? ELSE stopped_at END,
             paused_counter = CASE WHEN ? = 'paused' AND state = 'playing' THEN paused_counter + 1 ELSE paused_counter END
         WHERE session_key = ?
@@ -371,12 +431,16 @@ async function updateSession(activity, serverType) {
         activity.state,
         activity.progressPercent,
         activity.currentTime || 0,
+        playbackTime,
+        activity.state,
+        now,
         activity.bitrate || null,
         activity.transcoding ? 1 : 0,
         activity.videoCodec || null,
         activity.audioCodec || null,
         activity.container || null,
         activity.resolution || null,
+        activity.state,
         now,
         activity.state,
         now,
@@ -386,15 +450,21 @@ async function updateSession(activity, serverType) {
     }
   } else {
     // Create new session
+    // Start with 0 playback time, will accumulate as we get updates
+    const playbackTime = 0;
+    // Only set last_position_update if actually playing
+    const lastPositionUpdate = activity.state === 'playing' ? now : null;
+
     db.prepare(`
       INSERT INTO sessions (
         session_key, server_type, server_id, user_id, username, user_thumb,
         media_type, media_id, title, parent_title, grandparent_title,
         season_number, episode_number,
         year, thumb, art, started_at, state, progress_percent, duration,
-        current_time, bitrate, transcoding, video_codec, audio_codec, container, resolution,
+        current_time, playback_time, last_position_update,
+        bitrate, transcoding, video_codec, audio_codec, container, resolution,
         ip_address, location, city, region, country
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       activity.sessionKey,
       serverType,
@@ -417,6 +487,8 @@ async function updateSession(activity, serverType) {
       activity.progressPercent,
       activity.duration,
       activity.currentTime || 0,
+      playbackTime,
+      lastPositionUpdate,
       activity.bitrate || null,
       activity.transcoding ? 1 : 0,
       activity.videoCodec || null,
@@ -616,15 +688,18 @@ function stopInactiveSessions(activeSessionKeys) {
 
     // Get session data to calculate stream duration
     const sessionData = db.prepare('SELECT * FROM sessions WHERE session_key = ?').get(session.session_key);
-    const streamDuration = now - sessionData.started_at;
+    // Use playback_time (actual watch time, not wall-clock time including pauses)
+    const streamDuration = sessionData.playback_time || (sessionData.current_time || 0);
 
     // Add to history if it meets criteria
     if (shouldAddToHistory(session.title, session.duration, session.progress_percent, session.user_id, streamDuration, sessionData.media_type)) {
       try {
+        // Check if we already created a history entry for this exact stop event
+        // Use stopped_at timestamp to identify unique stop events
         const existingHistory = db.prepare(`
           SELECT id FROM history
-          WHERE session_id = ? AND media_id = ?
-        `).get(sessionData.id, sessionData.media_id);
+          WHERE user_id = ? AND media_id = ? AND watched_at = ?
+        `).get(sessionData.user_id, sessionData.media_id, now);
 
         if (!existingHistory) {
           db.prepare(`
@@ -699,8 +774,8 @@ function stopInactiveSessions(activeSessionKeys) {
       // Get session data to calculate stream duration
       const sessionData = db.prepare('SELECT * FROM sessions WHERE session_key = ?').get(session.session_key);
 
-      // Calculate stream duration: how long they actually watched this specific item
-      const streamDuration = now - sessionData.started_at;
+      // Calculate stream duration: use playback_time (actual watch time, not wall-clock time)
+      const streamDuration = sessionData.playback_time || (sessionData.current_time || 0);
 
       // Add to history if it meets criteria
       if (shouldAddToHistory(session.title, session.duration, session.progress_percent, session.user_id, streamDuration, sessionData.media_type)) {
@@ -902,8 +977,8 @@ export function startActivityMonitor() {
                 WHERE session_key = ?
               `).run(now, now, session.sessionId);
 
-              // Calculate stream duration
-              const streamDuration = now - dbSession.started_at;
+              // Calculate stream duration: use playback_time (actual watch time)
+              const streamDuration = dbSession.playback_time || (dbSession.current_time || 0);
 
               console.log(`   🛑 Stopped session: ${dbSession.title} (${dbSession.username}) - ${streamDuration}s duration`);
 
