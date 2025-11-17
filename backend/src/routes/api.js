@@ -1329,7 +1329,8 @@ router.get('/settings/users-by-server', (req, res) => {
     const grouped = {
       plex: [],
       emby: [],
-      audiobookshelf: []
+      audiobookshelf: [],
+      sappho: []
     };
 
     users.forEach(user => {
