@@ -1400,7 +1400,7 @@ router.post('/settings/user-mappings', (req, res) => {
     const now = Math.floor(Date.now() / 1000);
 
     // First, check for conflicts BEFORE deleting existing mappings
-    const serverTypes = ['plex', 'emby', 'audiobookshelf'];
+    const serverTypes = ['plex', 'emby', 'audiobookshelf', 'sappho'];
     for (const serverType of serverTypes) {
       if (mappings[serverType] && mappings[serverType].trim() !== '') {
         const mapped_username = mappings[serverType].trim();
