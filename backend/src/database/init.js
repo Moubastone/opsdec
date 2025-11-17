@@ -11,10 +11,9 @@ if (!existsSync(dir)) {
 }
 
 export const db = new Database(dbPath);
-db.pragma('journal_mode = WAL');
-
-// Configure WAL to checkpoint more frequently for data safety
-db.pragma('wal_autocheckpoint = 1000'); // Checkpoint every 1000 pages
+// Use DELETE journal mode instead of WAL for better Docker volume compatibility
+// WAL mode can cause corruption issues with Docker volumes, especially on macOS
+db.pragma('journal_mode = DELETE');
 db.pragma('synchronous = NORMAL'); // Good balance of safety and performance
 
 export function initDatabase() {
