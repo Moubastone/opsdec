@@ -2,7 +2,7 @@ import cron from 'node-cron';
 import EmbyService from './emby.js';
 import PlexService from './plex.js';
 import AudiobookshelfService from './audiobookshelf.js';
-import SaphoService from './sapho.js';
+import SapphoService from './sappho.js';
 import db from '../database/init.js';
 import { broadcast } from '../index.js';
 import geolocation from './geolocation.js';
@@ -10,7 +10,7 @@ import geolocation from './geolocation.js';
 let embyService = null;
 let plexService = null;
 let audiobookshelfService = null;
-let saphoService = null;
+let sapphoService = null;
 let lastActiveSessions = new Map();
 let cronJob = null;
 
@@ -112,11 +112,11 @@ export function initServices() {
           audiobookshelfService = service;
           services.push({ name: server.name, service, type: 'audiobookshelf', id: server.id });
           console.log(`✅ ${server.name} (Audiobookshelf) initialized from database`);
-        } else if (server.type === 'sapho') {
-          service = new SaphoService(server.url, server.api_key);
-          saphoService = service;
-          services.push({ name: server.name, service, type: 'sapho', id: server.id });
-          console.log(`✅ ${server.name} (Sapho) initialized from database`);
+        } else if (server.type === 'sappho') {
+          service = new SapphoService(server.url, server.api_key);
+          sapphoService = service;
+          services.push({ name: server.name, service, type: 'sappho', id: server.id });
+          console.log(`✅ ${server.name} (Sappho) initialized from database`);
         }
       } catch (error) {
         console.error(`❌ Failed to initialize ${server.name}:`, error.message);
@@ -183,18 +183,18 @@ function migrateEnvToDatabase() {
       }
     }
 
-    // Check and migrate Sapho
-    const saphoUrl = process.env.SAPHO_URL;
-    const saphoApiKey = process.env.SAPHO_API_KEY;
-    if (saphoUrl && saphoApiKey) {
-      const existing = db.prepare('SELECT * FROM servers WHERE type = ? AND url = ?').get('sapho', saphoUrl);
+    // Check and migrate Sappho
+    const sapphoUrl = process.env.SAPHO_URL;
+    const sapphoApiKey = process.env.SAPHO_API_KEY;
+    if (sapphoUrl && sapphoApiKey) {
+      const existing = db.prepare('SELECT * FROM servers WHERE type = ? AND url = ?').get('sappho', sapphoUrl);
       if (!existing) {
-        const id = `sapho-${Date.now()}`;
+        const id = `sappho-${Date.now()}`;
         db.prepare(`
           INSERT INTO servers (id, type, name, url, api_key, enabled, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(id, 'sapho', 'Sapho', saphoUrl, saphoApiKey, 1, now, now);
-        console.log('📥 Migrated Sapho from environment variables to database');
+        `).run(id, 'sappho', 'Sappho', sapphoUrl, sapphoApiKey, 1, now, now);
+        console.log('📥 Migrated Sappho from environment variables to database');
       }
     }
   } catch (error) {
@@ -658,7 +658,7 @@ function stopInactiveSessions(activeSessionKeys) {
 
   // First, clean up stale paused sessions (paused for more than 30 seconds)
   // Note: Audiobookshelf is excluded because it handles its own history import
-  // Sapho, Plex, and Emby sessions are included for proper history tracking
+  // Sappho, Plex, and Emby sessions are included for proper history tracking
   console.log(`🔍 Paused session check: now=${now}, timeout=${PAUSED_SESSION_TIMEOUT}`);
 
   const stalePausedSessions = db.prepare(`
@@ -694,12 +694,15 @@ function stopInactiveSessions(activeSessionKeys) {
     // Add to history if it meets criteria
     if (shouldAddToHistory(session.title, session.duration, session.progress_percent, session.user_id, streamDuration, sessionData.media_type)) {
       try {
-        // Check if we already created a history entry for this exact stop event
-        // Use stopped_at timestamp to identify unique stop events
+        // Check for duplicate history entries
+        // Look for entries with same user, media, duration within 60 seconds
         const existingHistory = db.prepare(`
           SELECT id FROM history
-          WHERE user_id = ? AND media_id = ? AND watched_at = ?
-        `).get(sessionData.user_id, sessionData.media_id, now);
+          WHERE user_id = ?
+            AND media_id = ?
+            AND ABS(watched_at - ?) < 60
+            AND ABS(stream_duration - ?) < 5
+        `).get(sessionData.user_id, sessionData.media_id, now, streamDuration);
 
         if (!existingHistory) {
           db.prepare(`
@@ -755,7 +758,7 @@ function stopInactiveSessions(activeSessionKeys) {
 
   for (const session of activeSessions) {
     // Skip Audiobookshelf sessions - they handle their own cleanup via history import
-    // Sapho sessions are included in the normal cleanup flow
+    // Sappho sessions are included in the normal cleanup flow
     if (session.server_type === 'audiobookshelf') {
       continue;
     }
@@ -944,17 +947,17 @@ export function startActivityMonitor() {
     });
   }
 
-  // Set up WebSocket for Sapho if available
-  if (saphoService) {
-    console.log('🔌 Setting up Sapho WebSocket for real-time updates...');
+  // Set up WebSocket for Sappho if available
+  if (sapphoService) {
+    console.log('🔌 Setting up Sappho WebSocket for real-time updates...');
 
     // Connect to WebSocket
-    saphoService.connectWebSocket();
+    sapphoService.connectWebSocket();
 
     // Register event handler for session updates
-    saphoService.onWebSocketEvent(async (type, message) => {
+    sapphoService.onWebSocketEvent(async (type, message) => {
       if (type === 'session.stop') {
-        console.log('📨 Sapho WebSocket: session.stop event - processing immediately');
+        console.log('📨 Sappho WebSocket: session.stop event - processing immediately');
 
         // Handle stopped session immediately
         const session = message.session;
@@ -1036,14 +1039,14 @@ export function startActivityMonitor() {
               }
             }
           } catch (error) {
-            console.error(`Error processing Sapho session.stop event: ${error.message}`);
+            console.error(`Error processing Sappho session.stop event: ${error.message}`);
           }
         }
 
         // Also trigger a full check to update UI
         checkActivity(services);
       } else if (type === 'session.start' || type === 'session.update' || type === 'session.pause') {
-        console.log(`📨 Sapho WebSocket: ${type} event - updating session`);
+        console.log(`📨 Sappho WebSocket: ${type} event - updating session`);
         // For other events, just trigger the normal check
         checkActivity(services);
       }
@@ -1096,9 +1099,9 @@ export function restartMonitoring() {
     console.log('   Disconnected Emby WebSocket');
   }
 
-  if (saphoService && saphoService.disconnectWebSocket) {
-    saphoService.disconnectWebSocket();
-    console.log('   Disconnected Sapho WebSocket');
+  if (sapphoService && sapphoService.disconnectWebSocket) {
+    sapphoService.disconnectWebSocket();
+    console.log('   Disconnected Sappho WebSocket');
   }
 
   // Note: Audiobookshelf doesn't use real-time connections - history is imported on a schedule
@@ -1107,7 +1110,7 @@ export function restartMonitoring() {
   embyService = null;
   plexService = null;
   audiobookshelfService = null;
-  saphoService = null;
+  sapphoService = null;
   lastActiveSessions = new Map();
 
   // Restart monitoring
@@ -1116,4 +1119,4 @@ export function restartMonitoring() {
   console.log('✅ Monitoring service restarted');
 }
 
-export { embyService, plexService, audiobookshelfService, saphoService };
+export { embyService, plexService, audiobookshelfService, sapphoService };

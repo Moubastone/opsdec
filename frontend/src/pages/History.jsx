@@ -13,8 +13,8 @@ const getServerIcon = (serverType) => {
       return <img src="/logos/plex.svg" alt="Plex" className="w-5 h-5" title="Plex" />;
     case 'audiobookshelf':
       return <img src="/logos/audiobookshelf.svg" alt="Audiobookshelf" className="w-5 h-5" title="Audiobookshelf" />;
-    case 'sapho':
-      return <img src="/logos/sapho.svg" alt="Sapho" className="w-6 h-6" title="Sapho" />;
+    case 'sappho':
+      return <img src="/logos/sappho.svg" alt="Sappho" className="w-6 h-6" title="Sappho" />;
     default:
       return null;
   }
@@ -477,7 +477,7 @@ function History() {
                           <div className="flex-shrink-0">
                             {item.thumb ? (
                               <img
-                                src={item.server_type === 'sapho' || item.server_type === 'audiobookshelf'
+                                src={item.server_type === 'sappho' || item.server_type === 'audiobookshelf'
                                   ? `/proxy/image?url=${encodeURIComponent(item.thumb)}`
                                   : item.thumb
                                 }

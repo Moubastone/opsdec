@@ -1,6 +1,6 @@
 import express from 'express';
 import db from '../database/init.js';
-import { embyService, audiobookshelfService, saphoService } from '../services/monitor.js';
+import { embyService, audiobookshelfService, sapphoService } from '../services/monitor.js';
 import multer from 'multer';
 
 const router = express.Router();
@@ -948,17 +948,17 @@ router.get('/audiobookshelf/libraries', async (req, res) => {
   }
 });
 
-// Get Sapho libraries
-router.get('/sapho/libraries', async (req, res) => {
+// Get Sappho libraries
+router.get('/sappho/libraries', async (req, res) => {
   try {
-    if (!saphoService) {
+    if (!sapphoService) {
       return res.status(503).json({
         success: false,
-        error: 'Sapho service not configured',
+        error: 'Sappho service not configured',
       });
     }
 
-    const libraries = await saphoService.getLibraries();
+    const libraries = await sapphoService.getLibraries();
     res.json({ success: true, data: libraries });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -1089,9 +1089,9 @@ router.post('/servers/:id/test', async (req, res) => {
           url: process.env.AUDIOBOOKSHELF_URL,
           api_key: process.env.AUDIOBOOKSHELF_TOKEN
         };
-      } else if (envType === 'sapho' && process.env.SAPHO_URL && process.env.SAPHO_API_KEY) {
+      } else if (envType === 'sappho' && process.env.SAPHO_URL && process.env.SAPHO_API_KEY) {
         server = {
-          type: 'sapho',
+          type: 'sappho',
           url: process.env.SAPHO_URL,
           api_key: process.env.SAPHO_API_KEY
         };
@@ -1113,9 +1113,9 @@ router.post('/servers/:id/test', async (req, res) => {
     } else if (server.type === 'audiobookshelf') {
       const { default: AudiobookshelfService } = await import('../services/audiobookshelf.js');
       ServiceClass = AudiobookshelfService;
-    } else if (server.type === 'sapho') {
-      const { default: SaphoService } = await import('../services/sapho.js');
-      ServiceClass = SaphoService;
+    } else if (server.type === 'sappho') {
+      const { default: SapphoService } = await import('../services/sappho.js');
+      ServiceClass = SapphoService;
     } else {
       return res.status(400).json({ success: false, error: 'Invalid server type' });
     }

@@ -15,8 +15,8 @@ function Dashboard() {
         return <img src="/logos/plex.svg" alt="Plex" className={size} title="Plex" />;
       case 'audiobookshelf':
         return <img src="/logos/audiobookshelf.svg" alt="Audiobookshelf" className={size} title="Audiobookshelf" />;
-      case 'sapho':
-        return <img src="/logos/sapho.svg" alt="Sapho" className={size} title="Sapho" />;
+      case 'sappho':
+        return <img src="/logos/sappho.svg" alt="Sappho" className={size} title="Sappho" />;
       default:
         return null;
     }
@@ -120,12 +120,12 @@ function Dashboard() {
                     </div>
                     {/* Server label */}
                     <div className="flex items-center justify-center gap-1 text-xs font-semibold capitalize">
-                      {getServerIcon(session.server_type, session.server_type === 'sapho' ? 'w-5 h-5' : 'w-3.5 h-3.5')}
+                      {getServerIcon(session.server_type, session.server_type === 'sappho' ? 'w-5 h-5' : 'w-3.5 h-3.5')}
                       <span className={
                         session.server_type === 'emby' ? 'text-green-400' :
                         session.server_type === 'plex' ? 'text-yellow-400' :
                         session.server_type === 'audiobookshelf' ? 'text-amber-600' :
-                        session.server_type === 'sapho' ? 'text-blue-400' :
+                        session.server_type === 'sappho' ? 'text-blue-400' :
                         'text-gray-400'
                       }>
                         {session.server_type}
@@ -210,9 +210,9 @@ function Dashboard() {
                       <div className="flex justify-between text-xs text-gray-400 mb-1">
                         <span>
                           {session.current_time && session.duration
-                            ? `${formatDuration(session.current_time, session.server_type === 'sapho')} / ${formatDuration(session.duration, session.server_type === 'sapho')}`
+                            ? `${formatDuration(session.current_time, session.server_type === 'sappho')} / ${formatDuration(session.duration, session.server_type === 'sappho')}`
                             : session.duration
-                            ? formatDuration(session.duration, session.server_type === 'sapho')
+                            ? formatDuration(session.duration, session.server_type === 'sappho')
                             : 'Unknown'}
                         </span>
                         {session.progress_percent > 0 && (

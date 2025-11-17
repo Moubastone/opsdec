@@ -2,7 +2,7 @@ import axios from 'axios';
 import https from 'https';
 import WebSocket from 'ws';
 
-class SaphoService {
+class SapphoService {
   constructor(baseUrl, apiKey) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.apiKey = apiKey;
@@ -13,7 +13,7 @@ class SaphoService {
       const url = new URL(this.baseUrl);
       hostname = url.hostname;
     } catch (e) {
-      console.error('Invalid Sapho URL:', this.baseUrl);
+      console.error('Invalid Sappho URL:', this.baseUrl);
       hostname = 'localhost';
     }
 
@@ -47,9 +47,9 @@ class SaphoService {
 
       return {
         success: true,
-        serverName: 'Sapho',
+        serverName: 'Sappho',
         version: response.data.version || 'Unknown',
-        message: 'Connected successfully to Sapho audiobook server.',
+        message: 'Connected successfully to Sappho audiobook server.',
       };
     } catch (error) {
       return {
@@ -61,21 +61,21 @@ class SaphoService {
 
   async getLibraries() {
     try {
-      // Sapho doesn't have a libraries endpoint, but we can return a default library
+      // Sappho doesn't have a libraries endpoint, but we can return a default library
       return [{
-        id: 'sapho-default',
+        id: 'sappho-default',
         name: 'Audiobooks',
         type: 'audiobook',
         itemCount: 0,
       }];
     } catch (error) {
-      console.error('Error fetching Sapho libraries:', error.message);
+      console.error('Error fetching Sappho libraries:', error.message);
       return [];
     }
   }
 
   /**
-   * Get active streams from Sapho's session tracking
+   * Get active streams from Sappho's session tracking
    * This now uses the /api/sessions endpoint similar to Plex
    */
   async getActiveStreams() {
@@ -85,7 +85,7 @@ class SaphoService {
 
       const activeStreams = [];
 
-      console.log(`📊 Found ${sessions.length} active Sapho session(s)`);
+      console.log(`📊 Found ${sessions.length} active Sappho session(s)`);
 
       for (const session of sessions) {
         const activity = this.parseSessionToActivity(session);
@@ -98,22 +98,32 @@ class SaphoService {
       // No need for manual cleanup - sessions not in this list will be auto-stopped
       return activeStreams;
     } catch (error) {
-      console.error('Error getting active Sapho streams:', error.message);
+      console.error('Error getting active Sappho streams:', error.message);
       return [];
     }
   }
 
   /**
-   * Parse Sapho session to opsdec activity format
+   * Parse Sappho session to opsdec activity format
    * Now with proper user, codec, and metadata information
    */
   parseSessionToActivity(session) {
     try {
+      // Detect LAN/WAN based on IP address
+      const ipAddress = session.ipAddress || null;
+      let location = null;
+
+      if (ipAddress) {
+        // Check if it's a private IP (LAN)
+        const isPrivate = this.isPrivateIP(ipAddress);
+        location = isPrivate ? 'lan' : 'wan';
+      }
+
       return {
         sessionKey: session.sessionId,
         userId: session.userId ? session.userId.toString() : 'unknown',
-        username: session.username || 'Sapho User',
-        userThumb: null, // Sapho doesn't have user avatars yet
+        username: session.username || 'Sappho User',
+        userThumb: null, // Sappho doesn't have user avatars yet
         mediaType: 'audiobook',
         mediaId: session.audiobookId.toString(),
         title: session.title || 'Unknown Title',
@@ -130,25 +140,44 @@ class SaphoService {
         duration: session.duration ? Math.round(session.duration) : null,
         currentTime: session.position ? Math.round(session.position) : 0,
         // Client information
-        clientName: session.clientName || 'Sapho Web Player',
+        clientName: session.clientName || 'Sappho Web Player',
         deviceName: session.platform || 'Web',
         platform: session.platform || 'Web',
         // Media info with proper codec detection
         bitrate: session.bitrate ? `${(session.bitrate / 1000).toFixed(2)}` : null, // Convert to Mbps
-        transcoding: false, // Sapho doesn't transcode
+        transcoding: false, // Sappho doesn't transcode
         videoCodec: null,
         audioCodec: session.audioCodec || 'unknown',
         container: session.container || 'unknown',
         resolution: null,
         audioChannels: null,
         // Location info
-        ipAddress: session.ipAddress || null,
-        location: null, // Could add LAN/WAN detection if needed
+        ipAddress: ipAddress,
+        location: location,
       };
     } catch (error) {
-      console.error('Error parsing Sapho session to activity:', error.message);
+      console.error('Error parsing Sappho session to activity:', error.message);
       return null;
     }
+  }
+
+  /**
+   * Check if an IP address is private/local
+   */
+  isPrivateIP(ip) {
+    if (!ip) return true;
+
+    const privateRanges = [
+      /^127\./,          // 127.0.0.0/8 (localhost)
+      /^10\./,           // 10.0.0.0/8 (private)
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./, // 172.16.0.0/12 (private)
+      /^192\.168\./,     // 192.168.0.0/16 (private)
+      /^::1$/,           // IPv6 localhost
+      /^fe80:/,          // IPv6 link-local
+      /^fc00:/,          // IPv6 unique local
+    ];
+
+    return privateRanges.some(range => range.test(ip));
   }
 
 
@@ -158,7 +187,7 @@ class SaphoService {
    */
   connectWebSocket() {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      console.log('🔌 Sapho WebSocket already connected');
+      console.log('🔌 Sappho WebSocket already connected');
       return;
     }
 
@@ -170,13 +199,13 @@ class SaphoService {
 
       const wsEndpoint = `${wsUrl}/ws/notifications?token=${this.apiKey}`;
 
-      console.log('🔌 Connecting to Sapho WebSocket...');
+      console.log('🔌 Connecting to Sappho WebSocket...');
       this.ws = new WebSocket(wsEndpoint, {
         rejectUnauthorized: false, // Allow self-signed certificates
       });
 
       this.ws.on('open', () => {
-        console.log('✅ Sapho WebSocket connected');
+        console.log('✅ Sappho WebSocket connected');
         this.wsConnected = true;
         this.wsReconnectAttempts = 0;
         this.wsReconnectDelay = 1000; // Reset delay
@@ -187,23 +216,23 @@ class SaphoService {
           const message = JSON.parse(data.toString());
           this.handleWebSocketMessage(message);
         } catch (error) {
-          console.error('Error parsing Sapho WebSocket message:', error.message);
+          console.error('Error parsing Sappho WebSocket message:', error.message);
         }
       });
 
       this.ws.on('error', (error) => {
-        console.error('❌ Sapho WebSocket error:', error.message);
+        console.error('❌ Sappho WebSocket error:', error.message);
       });
 
       this.ws.on('close', (code, reason) => {
-        console.log(`🔌 Sapho WebSocket closed (code: ${code}, reason: ${reason || 'none'})`);
+        console.log(`🔌 Sappho WebSocket closed (code: ${code}, reason: ${reason || 'none'})`);
         this.wsConnected = false;
         this.ws = null;
         this.scheduleReconnect();
       });
 
     } catch (error) {
-      console.error('Error creating Sapho WebSocket:', error.message);
+      console.error('Error creating Sappho WebSocket:', error.message);
       this.scheduleReconnect();
     }
   }
@@ -218,24 +247,24 @@ class SaphoService {
         return;
       }
 
-      console.log(`📡 Sapho WebSocket: ${type} - ${session?.audiobook?.title || 'Unknown'}`);
+      console.log(`📡 Sappho WebSocket: ${type} - ${session?.audiobook?.title || 'Unknown'}`);
 
       // Notify all registered event handlers
       for (const handler of this.wsEventHandlers) {
         try {
           handler(type, message);
         } catch (error) {
-          console.error('Error in Sapho WebSocket event handler:', error.message);
+          console.error('Error in Sappho WebSocket event handler:', error.message);
         }
       }
     } catch (error) {
-      console.error('Error handling Sapho WebSocket message:', error);
+      console.error('Error handling Sappho WebSocket message:', error);
     }
   }
 
   scheduleReconnect() {
     if (this.wsReconnectAttempts >= this.wsMaxReconnectAttempts) {
-      console.error(`❌ Sapho WebSocket max reconnection attempts (${this.wsMaxReconnectAttempts}) reached`);
+      console.error(`❌ Sappho WebSocket max reconnection attempts (${this.wsMaxReconnectAttempts}) reached`);
       return;
     }
 
@@ -244,7 +273,7 @@ class SaphoService {
     }
 
     const delay = Math.min(this.wsReconnectDelay * Math.pow(2, this.wsReconnectAttempts), 60000);
-    console.log(`🔌 Sapho WebSocket reconnecting in ${delay / 1000}s...`);
+    console.log(`🔌 Sappho WebSocket reconnecting in ${delay / 1000}s...`);
 
     this.wsReconnectTimer = setTimeout(() => {
       this.wsReconnectAttempts++;
@@ -281,4 +310,4 @@ class SaphoService {
   }
 }
 
-export default SaphoService;
+export default SapphoService;

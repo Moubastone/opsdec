@@ -38,7 +38,7 @@ app.get('/proxy/image', async (req, res) => {
     // Check if this URL needs authentication and add auth header if needed
     const headers = {};
 
-    // Check database for servers that require authentication (Audiobookshelf, Sapho)
+    // Check database for servers that require authentication (Audiobookshelf, Sappho)
     try {
       const servers = db.prepare('SELECT * FROM servers WHERE enabled = 1').all();
       for (const server of servers) {
