@@ -57,7 +57,14 @@ The easiest way to run OpsDec is with Docker. Pre-built images are automatically
 
 #### Using Pre-built Image from GitHub Container Registry
 
-The latest image is available at `ghcr.io/mondominator/opsdec:latest`
+Pre-built images are available with multiple tags for version pinning:
+
+- **Latest (main branch)**: `ghcr.io/mondominator/opsdec:latest`
+- **Date-based**: `ghcr.io/mondominator/opsdec:20251118` (format: YYYYMMDD)
+- **Commit SHA**: `ghcr.io/mondominator/opsdec:main-abc1234`
+- **Semantic versions**: `ghcr.io/mondominator/opsdec:1.0.0` (when releases are tagged)
+
+**Recommended for production**: Use date-based or version tags instead of `latest` for stability.
 
 #### Using Docker Compose
 

@@ -42,12 +42,20 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
+            # Semantic versioning tags (when you create v1.0.0 releases)
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
+            # Branch name (main, develop, etc.)
+            type=ref,event=branch
+            # PR number
+            type=ref,event=pr
+            # Git commit SHA (short)
+            type=sha,prefix={{branch}}-,format=short
+            # Latest tag for main branch
             type=raw,value=latest,enable={{is_default_branch}}
+            # Date tag for main branch (YYYYMMDD)
+            type=raw,value={{date 'YYYYMMDD'}},enable={{is_default_branch}}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
