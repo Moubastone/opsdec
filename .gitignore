@@ -18,6 +18,9 @@ build/
 # Docker Compose overrides with secrets
 docker-compose.override.yml
 
+# Security cleanup documentation (contains info about old secrets)
+SECURITY_CLEANUP_SUMMARY.md
+
 # Database
 *.db
 *.db-shm
