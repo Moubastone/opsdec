@@ -60,15 +60,16 @@ If you're running Unraid, you can install OpsDec using the Community Application
    - Search for "OpsDec"
    - Click **Install**
 
-2. **Or install manually using the template URL**:
-   - Go to the **Docker** tab in Unraid
-   - Click **Add Container**
-   - At the bottom, toggle **"Template repositories"**
-   - Paste this URL: `https://raw.githubusercontent.com/mondominator/opsdec/main/opsdec-unraid-template.xml`
+2. **Or install manually from the template**:
+   - Go to **Settings** → **Docker**
+   - Under **Template repositories**, add this URL:
+     ```
+     https://raw.githubusercontent.com/mondominator/opsdec/main/
+     ```
    - Click **Save**
-   - Find "OpsDec" in your template list and click it
-   - Configure your media server settings
-   - Click **Apply**
+   - Go to the **Docker** tab
+   - Click **Add Container**
+   - Select **OpsDec** from the template dropdown
 
 3. **Configure your servers**:
    - Fill in the URLs and API keys/tokens for your media servers (Plex, Emby, Audiobookshelf, Sappho)
