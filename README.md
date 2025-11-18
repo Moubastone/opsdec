@@ -51,7 +51,33 @@ A modern, self-hosted media server monitoring and statistics platform inspired b
 
 ## Installation
 
-### Option 1: Docker (Recommended)
+### Option 1: Unraid (Easiest)
+
+If you're running Unraid, you can install OpsDec using the Community Applications plugin:
+
+1. **Install from Community Applications** (when available):
+   - Open Unraid's **Apps** tab
+   - Search for "OpsDec"
+   - Click **Install**
+
+2. **Or install manually using the template URL**:
+   - Go to the **Docker** tab in Unraid
+   - Click **Add Container**
+   - At the bottom, toggle **"Template repositories"**
+   - Paste this URL: `https://raw.githubusercontent.com/mondominator/opsdec/main/opsdec-unraid-template.xml`
+   - Click **Save**
+   - Find "OpsDec" in your template list and click it
+   - Configure your media server settings
+   - Click **Apply**
+
+3. **Configure your servers**:
+   - Fill in the URLs and API keys/tokens for your media servers (Plex, Emby, Audiobookshelf, Sappho)
+   - You can leave servers blank if you don't use them
+   - Choose your preferred **Repository Tag** (latest, 0.1.0, or date-based for stability)
+
+4. Access OpsDec at `http://[UNRAID-IP]:3001`
+
+### Option 2: Docker (Recommended)
 
 The easiest way to run OpsDec is with Docker. Pre-built images are automatically published to GitHub Container Registry.
 
@@ -120,16 +146,16 @@ docker run -d \
   opsdec
 ```
 
-### Option 2: Manual Installation
+### Option 3: Manual Installation
 
-### 1. Clone the repository
+#### 1. Clone the repository
 
 ```bash
 git clone https://github.com/mondominator/opsdec.git
 cd opsdec
 ```
 
-### 2. Install dependencies
+#### 2. Install dependencies
 
 ```bash
 npm install
@@ -137,7 +163,7 @@ npm install
 
 This will install dependencies for both the backend and frontend using npm workspaces.
 
-### 3. Configure the backend
+#### 3. Configure the backend
 
 Create a `.env` file in the `backend` directory:
 
@@ -218,7 +244,7 @@ Look for `<authentication-token>` in the response.
 4. Enter "OpsDec" as the name
 5. Copy the generated API key
 
-### 4. Start the application
+#### 4. Start the application
 
 For development (runs both backend and frontend):
 
