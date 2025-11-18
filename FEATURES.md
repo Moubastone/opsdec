@@ -1,5 +1,7 @@
 # OpsDec - Feature Overview
 
+> **100% vibe coded** - Built with AI assistance and good vibes 🤖✨
+
 ## Current Features (v0.2.0)
 
 ### 📊 Real-Time Monitoring
@@ -66,8 +68,17 @@
 - ✅ Progress tracking
 - ✅ Metadata retrieval
 
+#### Sappho Support
+- ✅ Active session monitoring
+- ✅ User tracking
+- ✅ Library access
+- ✅ Session state (playing/paused/buffering)
+- ✅ Progress tracking
+- ✅ Metadata retrieval
+- ✅ User mapping support
+
 #### Multi-Server
-- ✅ Monitor Plex, Emby, and Audiobookshelf simultaneously
+- ✅ Monitor Plex, Emby, Audiobookshelf, and Sappho simultaneously
 - ✅ Unified dashboard for all servers
 - ✅ Aggregated statistics
 - ✅ Per-server activity breakdown
@@ -75,13 +86,14 @@
 
 ### 🎨 User Interface
 - **Tautulli-Inspired Design** - Familiar, polished dark theme
-- **Responsive Layout** - Works on desktop and tablet
+- **Fully Mobile Responsive** - Optimized layouts for mobile, tablet, and desktop
 - **Real-Time Updates** - Live activity refresh
 - **Interactive Charts** - Visual play history
 - **Media Thumbnails** - Poster art and backdrop images
 - **Progress Indicators** - Visual playback progress bars
 - **Settings UI** - Manage server configurations through web interface
 - **Environment Badge** - Visual indicators for env-configured servers
+- **User Mapping Interface** - Consolidate users across different servers
 
 ### 🗄️ Data Management
 - **SQLite Database** - Lightweight, file-based storage
@@ -111,8 +123,10 @@
 - [x] **Audiobookshelf Integration** - Monitor audiobook listening ✅ COMPLETED
 - [x] **Advanced Filtering** - Filter history by date, media type, etc. ✅ COMPLETED
 - [x] **Search Functionality** - Search media and users ✅ COMPLETED
+- [x] **Mobile Responsive** - Fully optimized mobile interface ✅ COMPLETED
+- [x] **Sappho Integration** - Monitor Sappho audiobook server ✅ COMPLETED
+- [x] **User Mapping** - Consolidate users across servers ✅ COMPLETED
 - [ ] **Export Data** - CSV/JSON export for statistics
-- [ ] **Mobile Responsive** - Improved mobile experience
 - [ ] **Date Range Filtering** - Filter history by custom date ranges
 
 ### 🎯 Phase 3

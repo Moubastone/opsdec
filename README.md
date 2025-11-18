@@ -1,6 +1,8 @@
 # OpsDec
 
-A modern, self-hosted media server monitoring and statistics platform inspired by Tautulli. Track your Plex, Emby, and Audiobookshelf server activity with real-time monitoring, detailed statistics, and a beautiful dark-themed interface.
+> **100% vibe coded** - Built with AI assistance and good vibes 🤖✨
+
+A modern, self-hosted media server monitoring and statistics platform inspired by Tautulli. Track your Plex, Emby, Audiobookshelf, and Sappho server activity with real-time monitoring, detailed statistics, and a beautiful dark-themed interface.
 
 ![OpsDec](https://img.shields.io/badge/version-0.1.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -10,13 +12,15 @@ A modern, self-hosted media server monitoring and statistics platform inspired b
 
 - 📊 **Real-time Activity Monitoring** - Track current playback sessions in real-time
 - 📈 **Detailed Statistics** - View comprehensive statistics for users and media
-- 👥 **User Management** - Monitor individual user activity and watch history
+- 👥 **User Management** - Monitor individual user activity and watch history with user mapping across servers
 - 📜 **Watch History** - Complete history of all playback sessions
 - 🎨 **Tautulli-inspired UI** - Dark, modern interface with smooth animations
-- 🔌 **Multi-Server Support** - Supports Plex, Emby, and Audiobookshelf
+- 📱 **Mobile Responsive** - Fully optimized mobile interface with touch-friendly controls
+- 🔌 **Multi-Server Support** - Supports Plex, Emby, Audiobookshelf, and Sappho
 - 🐳 **Docker Ready** - Easy deployment with Docker and Docker Compose
 - 🚀 **Fast & Lightweight** - Built with React and Express.js
 - 💾 **SQLite Database** - Simple, file-based database with no external dependencies
+- 🎯 **User Mapping** - Consolidate the same user across different media servers
 
 ## Tech Stack
 
@@ -39,7 +43,7 @@ A modern, self-hosted media server monitoring and statistics platform inspired b
 
 - **For Docker:** Docker and Docker Compose
 - **For Manual Install:** Node.js 18.0.0 or higher
-- **Media Server:** Plex Media Server, Emby Media Server, and/or Audiobookshelf with API access
+- **Media Server:** Plex Media Server, Emby Media Server, Audiobookshelf, and/or Sappho with API access
 
 ## Installation
 
@@ -64,6 +68,10 @@ EMBY_API_KEY=your_emby_api_key
 # Audiobookshelf Configuration (optional)
 AUDIOBOOKSHELF_URL=http://your-audiobookshelf-server:13378
 AUDIOBOOKSHELF_TOKEN=your_audiobookshelf_token
+
+# Sappho Configuration (optional)
+SAPPHO_URL=http://your-sappho-server:3000
+SAPPHO_API_KEY=your_sappho_api_key
 
 # Polling interval (seconds)
 POLL_INTERVAL=30
@@ -92,6 +100,8 @@ docker run -d \
   -e EMBY_API_KEY=your_emby_api_key \
   -e AUDIOBOOKSHELF_URL=http://your-audiobookshelf-server:13378 \
   -e AUDIOBOOKSHELF_TOKEN=your_audiobookshelf_token \
+  -e SAPPHO_URL=http://your-sappho-server:3000 \
+  -e SAPPHO_API_KEY=your_sappho_api_key \
   opsdec
 ```
 
@@ -100,7 +110,7 @@ docker run -d \
 ### 1. Clone the repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/mondominator/opsdec.git
 cd opsdec
 ```
 
@@ -142,6 +152,10 @@ EMBY_API_KEY=your_emby_api_key_here
 AUDIOBOOKSHELF_URL=http://localhost:13378
 AUDIOBOOKSHELF_TOKEN=your_audiobookshelf_token_here
 
+# Sappho Configuration (optional - leave blank if not using)
+SAPPHO_URL=http://localhost:3000
+SAPPHO_API_KEY=your_sappho_api_key_here
+
 # Polling interval in seconds
 POLL_INTERVAL=30
 ```
@@ -181,6 +195,14 @@ Look for `<authentication-token>` in the response.
 4. Click **Generate New API Token**
 5. Copy the generated token
 
+#### Getting your Sappho API Key:
+
+1. Log into your Sappho server
+2. Go to **Settings** → **API Keys**
+3. Click **Create New API Key**
+4. Enter "OpsDec" as the name
+5. Copy the generated API key
+
 ### 4. Start the application
 
 For development (runs both backend and frontend):
@@ -203,6 +225,7 @@ Configure servers via environment variables in your `.env` file or `docker-compo
 - **Plex** - Set `PLEX_URL` and `PLEX_TOKEN`
 - **Emby** - Set `EMBY_URL` and `EMBY_API_KEY`
 - **Audiobookshelf** - Set `AUDIOBOOKSHELF_URL` and `AUDIOBOOKSHELF_TOKEN`
+- **Sappho** - Set `SAPPHO_URL` and `SAPPHO_API_KEY`
 
 Environment variable servers will appear in the Settings UI as read-only with a special badge.
 
@@ -253,6 +276,7 @@ opsdec/
 │   │   │   ├── emby.js          # Emby API integration
 │   │   │   ├── plex.js          # Plex API integration
 │   │   │   ├── audiobookshelf.js # Audiobookshelf API integration
+│   │   │   ├── sappho.js        # Sappho API integration
 │   │   │   └── monitor.js       # Activity monitoring service
 │   │   └── index.js             # Express server and WebSocket
 │   ├── .env.example
@@ -346,10 +370,11 @@ opsdec/
 - [ ] Notifications (Discord, Email, etc.)
 - [ ] Custom dashboard widgets
 - [ ] Export statistics to CSV/JSON
-- [ ] Mobile-responsive design improvements
+- [x] Mobile-responsive design - Fully optimized!
 - [ ] Dark/Light theme toggle
 - [ ] User authentication
 - [ ] Date range filtering for history
+- [x] User mapping across servers - Implemented!
 
 ## Contributing
 

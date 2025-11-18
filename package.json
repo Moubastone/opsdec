@@ -1,8 +1,16 @@
 {
   "name": "opsdec",
   "version": "0.1.0",
-  "description": "Media server monitoring and statistics platform for Plex, Emby and Audiobookshelf",
+  "description": "Media server monitoring and statistics platform for Plex, Emby, Audiobookshelf, and Sappho",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mondominator/opsdec.git"
+  },
+  "homepage": "https://github.com/mondominator/opsdec",
+  "bugs": {
+    "url": "https://github.com/mondominator/opsdec/issues"
+  },
   "workspaces": [
     "backend",
     "frontend"
