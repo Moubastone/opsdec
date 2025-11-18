@@ -61,13 +61,9 @@ If you're running Unraid, you can install OpsDec using the Community Application
    - Click **Install**
 
 2. **Or install manually from the template**:
-   - Go to **Settings** → **Docker**
-   - Under **Template repositories**, add this URL:
-     ```
-     https://raw.githubusercontent.com/mondominator/opsdec/main/
-     ```
-   - Click **Save**
-   - Go to the **Docker** tab
+   - Download the template file: [opsdec-unraid-template.xml](https://raw.githubusercontent.com/mondominator/opsdec/main/opsdec-unraid-template.xml)
+   - Place it in `/boot/config/plugins/dockerMan/templates-user/` on your Unraid server
+   - Go to the **Docker** tab in Unraid
    - Click **Add Container**
    - Select **OpsDec** from the template dropdown
 
