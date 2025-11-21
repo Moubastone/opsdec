@@ -356,6 +356,67 @@ export function initDatabase() {
     console.error('User mappings migration error:', error.message);
   }
 
+  // Remove foreign key constraint from history table
+  try {
+    const historySchema = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='history'").get();
+
+    if (historySchema && historySchema.sql.includes('FOREIGN KEY')) {
+      console.log('🔧 Removing foreign key constraint from history table...');
+
+      // Get existing history data
+      const existingHistory = db.prepare('SELECT * FROM history').all();
+
+      // Drop and recreate the table without foreign key
+      db.exec('DROP TABLE IF EXISTS history');
+      db.exec(`
+        CREATE TABLE history (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          session_id INTEGER,
+          server_type TEXT NOT NULL,
+          user_id TEXT NOT NULL,
+          username TEXT NOT NULL,
+          media_type TEXT NOT NULL,
+          media_id TEXT NOT NULL,
+          title TEXT NOT NULL,
+          parent_title TEXT,
+          grandparent_title TEXT,
+          watched_at INTEGER NOT NULL,
+          duration INTEGER,
+          percent_complete INTEGER,
+          thumb TEXT,
+          stream_duration INTEGER,
+          ip_address TEXT,
+          location TEXT,
+          city TEXT,
+          region TEXT,
+          country TEXT
+        )
+      `);
+
+      // Restore data
+      const insert = db.prepare(`INSERT INTO history (
+        id, session_id, server_type, user_id, username, media_type, media_id,
+        title, parent_title, grandparent_title, watched_at, duration, percent_complete,
+        thumb, stream_duration, ip_address, location, city, region, country
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+
+      for (const record of existingHistory) {
+        insert.run(
+          record.id, record.session_id, record.server_type, record.user_id,
+          record.username, record.media_type, record.media_id, record.title,
+          record.parent_title, record.grandparent_title, record.watched_at,
+          record.duration, record.percent_complete, record.thumb,
+          record.stream_duration, record.ip_address, record.location,
+          record.city, record.region, record.country
+        );
+      }
+
+      console.log(`✅ Migrated ${existingHistory.length} history records without foreign key constraint`);
+    }
+  } catch (error) {
+    console.error('History table migration error:', error.message);
+  }
+
   // Initialize default history filter settings if they don't exist
   try {
     const settingsKeys = ['history_min_duration', 'history_min_percent', 'history_exclusion_patterns', 'history_group_successive'];
