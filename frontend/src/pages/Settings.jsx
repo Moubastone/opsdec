@@ -864,7 +864,7 @@ export default function Settings() {
 
                 {/* Sappho */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
+                  <label className="block text-sm font-medium text-gray-300 mb-2 flex items-center gap-1.5">
                     {getServerIcon('sappho')}
                     Sappho Username
                   </label>
@@ -971,7 +971,7 @@ export default function Settings() {
                       className="w-4 h-4 text-primary-600 focus:ring-primary-500 focus:ring-2"
                       disabled={!mappingFormData.mappings.sappho}
                     />
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       {getServerIcon('sappho')}
                       <span className={`text-sm ${mappingFormData.mappings.sappho ? 'text-gray-200' : 'text-gray-500'}`}>
                         Sappho
@@ -1085,7 +1085,7 @@ export default function Settings() {
                           )}
                           {/* Sappho */}
                           {mapping.mappings.sappho && (
-                            <div className="flex items-center gap-1.5 px-2 py-1 bg-dark-700 rounded text-xs">
+                            <div className="flex items-center gap-1 px-2 py-1 bg-dark-700 rounded text-xs">
                               {getServerIcon('sappho')}
                               <span className="text-gray-300">{mapping.mappings.sappho}</span>
                             </div>
