@@ -75,7 +75,12 @@ export function initDatabase() {
       duration INTEGER,
       percent_complete INTEGER,
       thumb TEXT,
-      FOREIGN KEY (session_id) REFERENCES sessions(id)
+      stream_duration INTEGER,
+      ip_address TEXT,
+      location TEXT,
+      city TEXT,
+      region TEXT,
+      country TEXT
     )
   `);
 
