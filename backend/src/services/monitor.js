@@ -249,6 +249,9 @@ async function updateSession(activity, serverType) {
     if (existing.state === 'stopped' && existing.stopped_at && existing.media_id === activity.mediaId && (activity.state === 'playing' || activity.state === 'buffering')) {
       console.log(`▶️  Resuming stopped session as new session: ${existing.title}`);
       // Reset the session (history was already created when it stopped)
+      // Delete the old history entry so we can create a new one when this session stops again
+      db.prepare(`DELETE FROM history WHERE session_id = ? AND media_id = ?`).run(existing.id, existing.media_id);
+
       // Update it to look like a fresh new session starting now
       const lastPositionUpdate = activity.state === 'playing' ? now : null;
 
