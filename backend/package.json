@@ -2,6 +2,7 @@
   "name": "opsdec-backend",
   "version": "0.1.0",
   "description": "OpsDec backend server",
+  "license": "MIT",
   "type": "module",
   "main": "src/index.js",
   "scripts": {
